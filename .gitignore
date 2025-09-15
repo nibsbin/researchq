@@ -56,6 +56,8 @@ Thumbs.db
 # Profiling
 .prof
 
+.pyc
+
 # Research output
 research_table.csv
 research_table.json
