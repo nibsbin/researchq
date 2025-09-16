@@ -24,8 +24,8 @@ async def test_structured_spray():
     
     try:
         df_simple = await spray(
-            word_sets_param=simple_word_sets,
-            research_questions_param=simple_questions,
+            word_sets=simple_word_sets,
+            research_questions=simple_questions,
             delay_seconds=1.0,  # Slower for testing
             response_model=SimpleYesNoResponse
         )
@@ -74,8 +74,8 @@ async def test_structured_spray():
     
     try:
         df_complex = await spray(
-            word_sets_param=complex_word_sets,
-            research_questions_param=complex_questions,
+            word_sets=complex_word_sets,
+            research_questions=complex_questions,
             delay_seconds=1.0,
             response_model=CybersecurityAssessment
         )

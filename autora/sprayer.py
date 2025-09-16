@@ -3,9 +3,10 @@
 import pandas as pd
 import asyncio
 from itertools import product
-from typing import Dict, List, Any, Optional, Type, Union
+from typing import Dict, List, Any, Optional, Type, Union, Tuple
 import traceback
 import json
+import time
 from pydantic import BaseModel
 from autora.llm import query_sonar, query_sonar_structured
 
@@ -31,130 +32,242 @@ research_questions = [
 
 #=========================================================
 
+async def process_single_query(task_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Process a single query task and return the result row data.
+    
+    Args:
+        task_data: Dictionary containing task information
+        
+    Returns:
+        Dictionary containing the processed row data
+    """
+    word_dict = task_data['word_dict']
+    question_template = task_data['question_template']
+    response_model = task_data['response_model']
+    query_id = task_data['query_id']
+    total_queries = task_data['total_queries']
+    
+    print(f"\nProcessing query {query_id}/{total_queries}: {word_dict}")
+    
+    # Format the research question with the current word combination
+    formatted_question = question_template.format(**word_dict)
+    print(f"  Query {query_id}/{total_queries}: {formatted_question[:80]}...")
+    
+    # Query Sonar API (structured or unstructured)
+    try:
+        if response_model is not None:
+            # Use structured query with Pydantic model
+            structured_result = await query_sonar_structured(formatted_question, response_model)
+            response_json = structured_result['raw_response']
+            response_content = response_json.get('choices', [{}])[0].get('message', {}).get('content', 'No response') if response_json else 'No response'
+            
+            # Add structured response data
+            structured_data = structured_result['structured_data']
+            parsing_success = structured_result['parsing_success']
+            parsing_error = structured_result['parsing_error']
+            retries_used = structured_result['retries_used']
+            
+            if parsing_success:
+                print(f"    ✓ Got structured response ({len(response_content)} chars, {retries_used} retries)")
+            else:
+                print(f"    ⚠ Got response but parsing failed ({len(response_content)} chars, {retries_used} retries): {parsing_error}")
+        else:
+            # Use regular unstructured query
+            response = await query_sonar(formatted_question)
+            response_json = response
+            response_content = response.get('choices', [{}])[0].get('message', {}).get('content', 'No response')
+            structured_data = None
+            parsing_success = None
+            parsing_error = None
+            retries_used = 0
+            print(f"    ✓ Got response ({len(response_content)} chars)")
+            
+    except Exception as e:
+        response_json = {"error": str(e), "traceback": traceback.format_exc()}
+        response_content = f"Error: {str(e)}"
+        structured_data = None
+        parsing_success = False
+        parsing_error = str(e)
+        retries_used = 0
+        print(f"    ✗ Error: {str(e)}")
+        # Print full traceback for debugging
+        print(f"    Full error: {traceback.format_exc()}")
+        # Continue with other queries even if one fails
+    
+    # Create enriched citations by cross-referencing with search results
+    enriched_citations = []
+    if isinstance(response_json, dict):
+        citations = response_json.get('citations', [])
+        search_results = response_json.get('search_results', [])
+        
+        # Create a lookup dictionary for search results by URL
+        search_lookup = {result.get('url', ''): result for result in search_results}
+        
+        for citation_url in citations:
+            enriched_citation = {
+                'url': citation_url,
+                'title': None,
+                'snippet': None,
+                'date': None,
+                'last_updated': None,
+                'matched': False
+            }
+            
+            # Try to find matching search result
+            if citation_url in search_lookup:
+                search_result = search_lookup[citation_url]
+                enriched_citation.update({
+                    'title': search_result.get('title'),
+                    'snippet': search_result.get('snippet'),
+                    'date': search_result.get('date'),
+                    'last_updated': search_result.get('last_updated'),
+                    'matched': True
+                })
+            
+            enriched_citations.append(enriched_citation)
+    
+    # Create row data
+    row_data = word_dict.copy()
+    row_data.update({
+        'research_question': formatted_question,
+        'sonar_response': response_content,
+        'sonar_response_json': response_json,
+        'question_template': question_template,
+        'search_results': response_json.get('search_results', []) if isinstance(response_json, dict) else [],
+        'citations': response_json.get('citations', []) if isinstance(response_json, dict) else [],
+        'enriched_citations': enriched_citations,
+        'content': response_json.get('choices', [{}])[0].get('message', {}).get('content', '') if isinstance(response_json, dict) else ''
+    })
+    
+    # Add structured response data if using a response model
+    if response_model is not None:
+        row_data.update({
+            'structured_data': structured_data.model_dump() if structured_data else None,
+            'parsing_success': parsing_success,
+            'parsing_error': parsing_error,
+            'retries_used': retries_used
+        })
+    
+    return row_data
+
+
 async def spray(
-    word_sets_param: Dict[str, List[str]] = None,
-    research_questions_param: List[str] = None,
-    delay_seconds: float = 0.5,
-    response_model: Optional[Type[BaseModel]] = None
+    word_sets: Dict[str, List[str]] = None,
+    research_questions: List[str] = None,
+    max_concurrent: int = 1,
+    delay_between_batches: float = 0.5,
+    response_model: Optional[Type[BaseModel]] = None,
+    max_queries: Optional[int] = None
 ) -> pd.DataFrame:
     """
     Create a 2D table by permuting word sets and research questions,
-    querying Sonar API for each combination.
+    querying Sonar API for each combination. Supports both sequential and concurrent execution.
     
     Args:
-        word_sets_param: Dictionary of word sets to use for combinations.
-                        If None, uses the global word_sets variable.
-        research_questions_param: List of research question templates.
-                                If None, uses the global research_questions variable.
-        delay_seconds: Delay between API calls in seconds (default: 0.5)
+        word_sets: Dictionary of word sets to use for combinations.
+                  If None, uses the global word_sets variable.
+        research_questions: List of research question templates.
+                           If None, uses the global research_questions variable.
+        max_concurrent: Maximum number of concurrent API calls (default: 1 for sequential)
+                       Set to > 1 for concurrent execution
+        delay_between_batches: Delay between batches in seconds (default: 0.5)
+                              For sequential (max_concurrent=1), this is delay between each query
         response_model: Optional Pydantic model class to structure the response.
                        If provided, uses structured queries with JSON schema validation.
+        max_queries: Optional limit on total queries to process
     
     Returns:
         pd.DataFrame: Table with columns for word set combinations, research questions, and API responses.
                      If response_model is provided, includes additional columns for structured data.
     """
     # Use provided parameters or fall back to global variables
-    current_word_sets = word_sets_param if word_sets_param is not None else word_sets
-    current_research_questions = research_questions_param if research_questions_param is not None else research_questions
+    current_word_sets = word_sets if word_sets is not None else globals()['word_sets']
+    current_research_questions = research_questions if research_questions is not None else globals()['research_questions']
     
     # Generate all combinations of word sets
     word_set_keys = list(current_word_sets.keys())
     word_set_values = [current_word_sets[key] for key in word_set_keys]
     word_combinations = list(product(*word_set_values))
     
-    # Prepare data for the table
-    table_data = []
     total_queries = len(word_combinations) * len(current_research_questions)
+    if max_queries is not None:
+        total_queries = min(total_queries, max_queries)
     
-    print(f"Creating table with {len(word_combinations)} word combinations and {len(current_research_questions)} research questions...")
+    execution_mode = "concurrent" if max_concurrent > 1 else "sequential"
+    print(f"Creating spray with {len(word_combinations)} word combinations and {len(current_research_questions)} research questions...")
     print(f"Total API calls to make: {total_queries}")
+    print(f"Execution mode: {execution_mode} (max_concurrent={max_concurrent})")
     
+    # Prepare all query tasks
+    all_tasks = []
     query_count = 0
     
-    # Create rows for each combination of word sets and research questions
+    # Create all query tasks
     for i, word_combo in enumerate(word_combinations):
         # Create a dictionary mapping word set keys to their values for this combination
         word_dict = dict(zip(word_set_keys, word_combo))
-        print(f"\nProcessing combination {i+1}/{len(word_combinations)}: {word_dict}")
         
         for j, question_template in enumerate(current_research_questions):
+            if max_queries is not None and query_count >= max_queries:
+                break
             query_count += 1
             
-            # Format the research question with the current word combination
-            formatted_question = question_template.format(**word_dict)
-            print(f"  Query {query_count}/{total_queries}: {formatted_question[:80]}...")
+            # Create task for this query
+            task_data = {
+                'word_dict': word_dict,
+                'question_template': question_template,
+                'response_model': response_model,
+                'query_id': query_count,
+                'total_queries': total_queries
+            }
+            all_tasks.append(task_data)
+        
+        if max_queries is not None and query_count >= max_queries:
+            break
+    
+    # Process tasks based on concurrency setting
+    table_data = []
+    start_time = time.time()
+    
+    if max_concurrent <= 1:
+        # Sequential processing
+        for i, task_data in enumerate(all_tasks):
+            result = await process_single_query(task_data)
+            table_data.append(result)
             
-            # Query Sonar API (structured or unstructured)
-            try:
-                if response_model is not None:
-                    # Use structured query with Pydantic model
-                    structured_result = await query_sonar_structured(formatted_question, response_model)
-                    response_json = structured_result['raw_response']
-                    response_content = response_json.get('choices', [{}])[0].get('message', {}).get('content', 'No response') if response_json else 'No response'
-                    
-                    # Add structured response data
-                    structured_data = structured_result['structured_data']
-                    parsing_success = structured_result['parsing_success']
-                    parsing_error = structured_result['parsing_error']
-                    retries_used = structured_result['retries_used']
-                    
-                    if parsing_success:
-                        print(f"    ✓ Got structured response ({len(response_content)} chars, {retries_used} retries)")
-                    else:
-                        print(f"    ⚠ Got response but parsing failed ({len(response_content)} chars, {retries_used} retries): {parsing_error}")
-                else:
-                    # Use regular unstructured query
-                    response = await query_sonar(formatted_question)
-                    response_json = response
-                    response_content = response.get('choices', [{}])[0].get('message', {}).get('content', 'No response')
-                    structured_data = None
-                    parsing_success = None
-                    parsing_error = None
-                    retries_used = 0
-                    print(f"    ✓ Got response ({len(response_content)} chars)")
-                    
-            except Exception as e:
-                response_json = {"error": str(e), "traceback": traceback.format_exc()}
-                response_content = f"Error: {str(e)}"
-                structured_data = None
-                parsing_success = False
-                parsing_error = str(e)
-                retries_used = 0
-                print(f"    ✗ Error: {str(e)}")
-                # Print full traceback for debugging
-                print(f"    Full error: {traceback.format_exc()}")
-                # Continue with other queries even if one fails
-            
-            # Create row data
-            row_data = word_dict.copy()
-            row_data.update({
-                'research_question': formatted_question,
-                'sonar_response': response_content,
-                'sonar_response_json': response_json,
-                'question_template': question_template
-            })
-            
-            # Add structured response data if using a response model
-            if response_model is not None:
-                row_data.update({
-                    'structured_data': structured_data.model_dump() if structured_data else None,
-                    'parsing_success': parsing_success,
-                    'parsing_error': parsing_error,
-                    'retries_used': retries_used
-                })
-            
-            table_data.append(row_data)
-            
-            # Add configurable delay to be respectful to the API
-            await asyncio.sleep(delay_seconds)
+            # Add configurable delay between queries (except for the last one)
+            if i < len(all_tasks) - 1:
+                await asyncio.sleep(delay_between_batches)
+    else:
+        # Concurrent processing with semaphore
+        semaphore = asyncio.Semaphore(max_concurrent)
+        
+        async def process_with_semaphore(task_data):
+            async with semaphore:
+                result = await process_single_query(task_data)
+                # Add delay to respect rate limits
+                await asyncio.sleep(delay_between_batches)
+                return result
+        
+        # Process all tasks concurrently
+        tasks = [process_with_semaphore(task_data) for task_data in all_tasks]
+        table_data = await asyncio.gather(*tasks)
+    
+    elapsed_time = time.time() - start_time
+    print(f"\n✓ Completed {len(table_data)} queries in {elapsed_time:.2f} seconds")
+    if len(table_data) > 0:
+        print(f"  Average time per query: {elapsed_time/len(table_data):.2f}s")
     
     # Create DataFrame
     df = pd.DataFrame(table_data)
     
     # Reorder columns for better readability
     base_columns = word_set_keys
-    other_columns = ['question_template', 'research_question', 'sonar_response', 'sonar_response_json']
+    other_columns = [
+        'question_template', 'research_question', 'sonar_response_json',
+        'search_results', 'citations', 'enriched_citations', 'content'
+    ]
     
     # Add structured response columns if using a response model
     if response_model is not None:
@@ -165,11 +278,15 @@ async def spray(
     return df
 
 
+
+
+
 async def save_research_table(
     filename: str = "research_table",
     word_sets_param: Dict[str, List[str]] = None,
     research_questions_param: List[str] = None,
-    delay_seconds: float = 0.5,
+    max_concurrent: int = 1,
+    delay_between_batches: float = 0.5,
     response_model: Optional[Type[BaseModel]] = None
 ) -> pd.DataFrame:
     """
@@ -181,7 +298,8 @@ async def save_research_table(
                         If None, uses the global word_sets variable.
         research_questions_param: List of research question templates.
                                 If None, uses the global research_questions variable.
-        delay_seconds: Delay between API calls in seconds (default: 0.5)
+        max_concurrent: Maximum number of concurrent API calls (default: 1)
+        delay_between_batches: Delay between batches in seconds (default: 0.5)
         response_model: Optional Pydantic model class to structure the response.
                        If provided, uses structured queries with JSON schema validation.
         
@@ -192,7 +310,13 @@ async def save_research_table(
     print("AutoRA Research Sprayer - Creating 2D Table")
     print("=" * 50)
     
-    df = await spray(word_sets_param, research_questions_param, delay_seconds, response_model)
+    df = await spray(
+        word_sets=word_sets_param,
+        research_questions=research_questions_param,
+        max_concurrent=max_concurrent,
+        delay_between_batches=delay_between_batches,
+        response_model=response_model
+    )
     
     print(f"\n{'='*20} SAVING RESULTS {'='*20}")
     
@@ -263,11 +387,13 @@ async def demo_single_query():
     print(f"Questions: {demo_questions}")
     
     try:
-        # Use spray with minimal parameters to create a 1-cell table
+        # Use spray with max_queries=1 to get a single query
         df = await spray(
-            word_sets_param=demo_word_sets,
-            research_questions_param=demo_questions,
-            delay_seconds=0.1  # Faster for demo
+            word_sets=demo_word_sets,
+            research_questions=demo_questions,
+            max_concurrent=1,  # Sequential for demo
+            delay_between_batches=0.1,  # Faster for demo
+            max_queries=1  # Only process one query
         )
         
         print(f"\n{'='*20} DEMO RESULTS {'='*20}")
@@ -276,23 +402,27 @@ async def demo_single_query():
         if len(df) > 0:
             row = df.iloc[0]
             print(f"\n📋 Query Details:")
-            print(f"   Ministry/Domain: {row['ministry_domain']}")
-            print(f"   Country: {row['country']}")
-            print(f"   Question: {row['research_question']}")
+            for col in ['ministry_domain', 'country']:
+                if col in row:
+                    print(f"   {col}: {row[col]}")
+            if 'research_question' in row:
+                print(f"   Question: {row['research_question']}")
             
             print(f"\n💬 API Response:")
-            response_content = row['sonar_response']
-            # Format the response nicely with line breaks
-            lines = response_content.split('\n')
-            for line in lines[:10]:  # Show first 10 lines
-                if line.strip():
-                    print(f"   {line}")
+            if 'sonar_response' in row:
+                response_content = str(row['sonar_response'])
+                # Format the response nicely with line breaks
+                lines = response_content.split('\n')
+                for line in lines[:10]:  # Show first 10 lines
+                    if line.strip():
+                        print(f"   {line}")
+                
+                if len(lines) > 10:
+                    print(f"   ... ({len(lines) - 10} more lines)")
+                
+                print(f"\n📊 Response Stats:")
+                print(f"   Characters: {len(response_content)}")
             
-            if len(lines) > 10:
-                print(f"   ... ({len(lines) - 10} more lines)")
-            
-            print(f"\n📊 Response Stats:")
-            print(f"   Characters: {len(response_content)}")
             if 'sonar_response_json' in row and isinstance(row['sonar_response_json'], dict):
                 json_data = row['sonar_response_json']
                 if 'usage' in json_data:
@@ -333,12 +463,14 @@ async def demo_structured_query():
     print(f"Response model: SimpleYesNoResponse")
     
     try:
-        # Use spray with structured response model
+        # Use spray with structured response model and max_queries=1
         df = await spray(
-            word_sets_param=demo_word_sets,
-            research_questions_param=demo_questions,
-            delay_seconds=0.1,  # Faster for demo
-            response_model=SimpleYesNoResponse
+            word_sets=demo_word_sets,
+            research_questions=demo_questions,
+            max_concurrent=1,  # Sequential for demo
+            delay_between_batches=0.1,  # Faster for demo
+            response_model=SimpleYesNoResponse,
+            max_queries=1  # Only process one query
         )
         
         print(f"\n{'='*20} STRUCTURED DEMO RESULTS {'='*20}")
@@ -348,31 +480,36 @@ async def demo_structured_query():
         if len(df) > 0:
             row = df.iloc[0]
             print(f"\n📋 Query Details:")
-            print(f"   Ministry/Domain: {row['ministry_domain']}")
-            print(f"   Country: {row['country']}")
-            print(f"   Question: {row['research_question']}")
-            print(f"   Parsing Success: {row['parsing_success']}")
-            print(f"   Retries Used: {row['retries_used']}")
+            for col in ['ministry_domain', 'country']:
+                if col in row:
+                    print(f"   {col}: {row[col]}")
+            if 'research_question' in row:
+                print(f"   Question: {row['research_question']}")
+            if 'parsing_success' in row:
+                print(f"   Parsing Success: {row['parsing_success']}")
+            if 'retries_used' in row:
+                print(f"   Retries Used: {row['retries_used']}")
             
-            if row['parsing_success']:
+            if 'parsing_success' in row and row['parsing_success'] and 'structured_data' in row:
                 structured = row['structured_data']
                 print(f"\n🎯 Structured Response:")
-                print(f"   Answer: {structured['answer']}")
-                print(f"   Confidence: {structured['confidence']}")
-                print(f"   Explanation: {structured['explanation']}")
-                print(f"   Sources: {structured['sources']}")
-            else:
+                print(f"   Answer: {structured.get('answer', 'N/A')}")
+                print(f"   Confidence: {structured.get('confidence', 'N/A')}")
+                print(f"   Explanation: {structured.get('explanation', 'N/A')}")
+                print(f"   Sources: {structured.get('sources', 'N/A')}")
+            elif 'parsing_error' in row:
                 print(f"   Parsing Error: {row['parsing_error']}")
             
             print(f"\n💬 Raw API Response:")
-            response_content = row['sonar_response']
-            lines = response_content.split('\n')
-            for line in lines[:5]:  # Show first 5 lines
-                if line.strip():
-                    print(f"   {line}")
-            
-            if len(lines) > 5:
-                print(f"   ... ({len(lines) - 5} more lines)")
+            if 'sonar_response' in row:
+                response_content = str(row['sonar_response'])
+                lines = response_content.split('\n')
+                for line in lines[:5]:  # Show first 5 lines
+                    if line.strip():
+                        print(f"   {line}")
+                
+                if len(lines) > 5:
+                    print(f"   ... ({len(lines) - 5} more lines)")
         
         return df
     except Exception as e:
@@ -381,16 +518,101 @@ async def demo_structured_query():
         return None
 
 
+
+
+async def save_research_table_concurrent(
+    filename: str = "research_table_concurrent",
+    word_sets_param: Dict[str, List[str]] = None,
+    research_questions_param: List[str] = None,
+    max_concurrent: int = 5,
+    delay_between_batches: float = 1.0,
+    response_model: Optional[Type[BaseModel]] = None
+) -> pd.DataFrame:
+    """
+    Create and save the research table using concurrent processing.
+    
+    Args:
+        filename: Base name for the output files (without extension)
+        word_sets_param: Dictionary of word sets to use for combinations.
+        research_questions_param: List of research question templates.
+        max_concurrent: Maximum number of concurrent API calls
+        delay_between_batches: Delay between batches in seconds
+        response_model: Optional Pydantic model class to structure the response.
+        
+    Returns:
+        pd.DataFrame: The created table
+    """
+    print("=" * 50)
+    print("AutoRA Research Sprayer - Concurrent Processing")
+    print("=" * 50)
+    
+    df = await spray(
+        word_sets=word_sets_param,
+        research_questions=research_questions_param,
+        max_concurrent=max_concurrent,
+        delay_between_batches=delay_between_batches,
+        response_model=response_model
+    )
+    
+    print(f"\n{'='*20} SAVING RESULTS {'='*20}")
+    
+    # Save as CSV (with JSON as string for compatibility)
+    csv_filename = f"{filename}.csv"
+    df_csv = df.copy()
+    df_csv['sonar_response_json'] = df_csv['sonar_response_json'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
+    df_csv.to_csv(csv_filename, index=False)
+    print(f"✓ Saved CSV to {csv_filename}")
+    
+    # Save as JSON (preserving full JSON structure)
+    json_filename = f"{filename}.json"
+    df.to_json(json_filename, orient='records', indent=2)
+    print(f"✓ Saved JSON to {json_filename}")
+    
+    print(f"✓ Table created with {len(df)} rows and {len(df.columns)} columns")
+    
+    # Use current parameters for summary
+    current_word_sets = word_sets_param if word_sets_param is not None else word_sets
+    current_research_questions = research_questions_param if research_questions_param is not None else research_questions
+    
+    print(f"\n{'='*20} TABLE SUMMARY {'='*20}")
+    if len(df) > 0:
+        print(f"Word set combinations: {len(df.groupby(list(current_word_sets.keys())))}")
+        print(f"Research questions: {len(current_research_questions)}")
+        print(f"Total rows: {len(df)}")
+        
+        print(f"\n{'='*20} SAMPLE DATA {'='*20}")
+        # Show first few rows in a prettier format
+        word_set_keys = list(current_word_sets.keys())
+        for i, (idx, row) in enumerate(df.head(3).iterrows()):
+            print(f"\n--- Row {i+1} ---")
+            # Show word set values
+            for key in word_set_keys:
+                print(f"{key}: {row[key]}")
+            print(f"Question: {row['research_question']}")
+            response_preview = row['sonar_response'][:150] + "..." if len(row['sonar_response']) > 150 else row['sonar_response']
+            print(f"Response: {response_preview}")
+        
+        if len(df) > 3:
+            print(f"\n... and {len(df) - 3} more rows")
+    
+    print(f"\n{'='*20} COLUMN INFO {'='*20}")
+    print("Columns in the table:")
+    for i, col in enumerate(df.columns, 1):
+        print(f"{i:2d}. {col}")
+    
+    return df
+
+
 def main():
     """Main entry point for the sprayer"""
     print("AutoRA Research Sprayer")
-    print("======================")
+    print("=" * 25)
     print("Choose an option:")
-    print("1. Run demo single query (unstructured)")
-    print("2. Run demo single query (structured with Pydantic)")
-    print("3. Run full research spray")
+    print("1. Demo single query (unstructured)")
+    print("2. Demo single query (structured with Pydantic)")
+    print("3. Full research spray (save to files)")
     
-    choice = input("Enter choice (1, 2, or 3): ").strip()
+    choice = input("Enter choice (1-3): ").strip()
     
     if choice == "1":
         print("\nRunning demo single unstructured query...")
@@ -400,7 +622,7 @@ def main():
         asyncio.run(demo_structured_query())
     elif choice == "3":
         print("\nRunning full research spray...")
-        asyncio.run(save_research_table())
+        asyncio.run(save_research_table_concurrent())
     else:
         print("Invalid choice. Running unstructured demo by default...")
         asyncio.run(demo_single_query())

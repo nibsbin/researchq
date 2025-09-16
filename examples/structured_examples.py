@@ -24,8 +24,8 @@ async def example_1_simple_yes_no():
     ]
     
     df = await spray(
-        word_sets_param=word_sets,
-        research_questions_param=questions,
+        word_sets=word_sets,
+        research_questions=questions,
         delay_seconds=1.0,
         response_model=SimpleYesNoResponse
     )
@@ -60,8 +60,8 @@ async def example_2_cybersecurity_assessment():
     ]
     
     df = await spray(
-        word_sets_param=word_sets,
-        research_questions_param=questions,
+        word_sets=word_sets,
+        research_questions=questions,
         delay_seconds=1.0,
         response_model=CybersecurityAssessment
     )
@@ -102,8 +102,8 @@ async def example_3_mixed_questions():
     ]
     
     df = await spray(
-        word_sets_param=word_sets,
-        research_questions_param=questions,
+        word_sets=word_sets,
+        research_questions=questions,
         delay_seconds=1.0,
         response_model=SimpleYesNoResponse
     )
@@ -169,8 +169,8 @@ async def example_5_compare_structured_vs_unstructured():
     # Unstructured query
     print("Running unstructured query...")
     df_unstructured = await spray(
-        word_sets_param=word_sets,
-        research_questions_param=questions,
+        word_sets=word_sets,
+        research_questions=questions,
         delay_seconds=1.0
         # No response_model = unstructured
     )
@@ -178,8 +178,8 @@ async def example_5_compare_structured_vs_unstructured():
     # Structured query
     print("Running structured query...")
     df_structured = await spray(
-        word_sets_param=word_sets,
-        research_questions_param=questions,
+        word_sets=word_sets,
+        research_questions=questions,
         delay_seconds=1.0,
         response_model=SimpleYesNoResponse
     )

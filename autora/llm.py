@@ -58,7 +58,7 @@ async def query_sonar_structured(
     prompt: str, 
     response_model: Type[BaseModel], 
     model: str = "sonar",
-    max_retries: int = 3
+    max_retries: int = 3,
 ) -> Dict[str, Any]:
     """
     Query the Perplexity Sonar API with native structured output support using response_format.
@@ -67,20 +67,22 @@ async def query_sonar_structured(
         prompt: The user prompt to send
         response_model: Pydantic model class to structure the response
         model: The model to use (default: "sonar")
-        max_retries: Number of times to retry if the request fails (default: 3)
     
     Returns:
         dict: Contains 'raw_response' (original API response), 'structured_data' (parsed model),
               'parsing_success' (bool), and 'parsing_error' (if any)
     """
-    # Generate JSON schema from Pydantic model
+    # Generate JSON schema from Pydantic model with descriptions
     schema = response_model.model_json_schema()
     
-    # Enhance the prompt to improve schema adherence
+    # Enhance the prompt to improve schema adherence and mention field descriptions
     enhanced_prompt = f"""
 {prompt}
 
-Please provide comprehensive information and format your response according to the specified JSON schema structure.
+Please provide comprehensive information and format your response according to the specified JSON schema structure. Pay attention to the field descriptions in the schema to understand what information is expected for each field.
+
+JSON Schema:
+{json.dumps(schema, indent=2)}
 """
     
     result = {
@@ -90,7 +92,7 @@ Please provide comprehensive information and format your response according to t
         'parsing_error': None,
         'retries_used': 0
     }
-    
+
     for attempt in range(max_retries):
         try:
             # Use Perplexity's native structured output with response_format
