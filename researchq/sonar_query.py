@@ -14,6 +14,7 @@ class SonarQueryHandler(QueryHandler):
     model: str = "sonar"
     max_retries: int = 3
     def __init__(self, response_model: Type[BaseModel], model: str = "sonar", max_retries: int = 3, ):
+        self.response_model = response_model
         self.model = model
         self.max_retries = max_retries
     
