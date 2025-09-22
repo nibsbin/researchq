@@ -7,7 +7,7 @@ import httpx
 from unittest.mock import AsyncMock, patch, MagicMock
 import asyncio
 
-from autora.llm import query_sonar, query_sonar_with_context
+from researchq.llm import query_sonar, query_sonar_with_context
 
 
 class TestQuerySonar:

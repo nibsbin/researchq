@@ -6,7 +6,7 @@ import json
 import asyncio
 from pydantic import BaseModel, ValidationError
 
-from autora.CONFIG import PERPLEXITY_API_KEY
+from researchq.CONFIG import PERPLEXITY_API_KEY
 
 async def query_sonar(prompt: Optional[str] = None, model: str = "sonar"):
     """

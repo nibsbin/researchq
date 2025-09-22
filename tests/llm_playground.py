@@ -10,7 +10,7 @@ import json
 # Add the parent directory to the path so we can import from autora
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from autora.llm import query_sonar
+from researchq.llm import query_sonar
 
 
 def print_separator():
@@ -83,7 +83,7 @@ async def run_tests():
     print_separator()
     
     # Check if API key is configured
-    from autora.CONFIG import PERPLEXITY_API_KEY
+    from researchq.CONFIG import PERPLEXITY_API_KEY
     if not PERPLEXITY_API_KEY:
         print("❌ PERPLEXITY_API_KEY is not configured!")
         print("Make sure you have a .env file with PERPLEXITY_API_KEY set")

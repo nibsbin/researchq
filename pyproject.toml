@@ -1,15 +1,20 @@
 [project]
-name = "autora"
+name = "researchq"
 version = "0.1.0"
-description = "Automated research assistant; spray research questions at mass entities"
-readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "httpx",
     "pandas>=2.3.2",
-    "pytest>=8.4.2",
-    "pytest-asyncio>=1.1.0",
     "python-dotenv",
     "pydantic>=2.0.0",
     "openpyxl>=3.1.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["researchq"]
