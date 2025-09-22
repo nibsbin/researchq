@@ -7,11 +7,9 @@ from researchq.mock_query import MockQueryHandler, MockResponseModel
 from researchq.sonar_query import SonarQueryHandler
 
 query_handler = MockQueryHandler(MockResponseModel)
-
+storage_provider = SessionStorageProvider()
+workflow = Workflow(query_handler=query_handler, storage=storage_provider)
 async def test_one():
-    storage_provider = SessionStorageProvider()
-    workflow = Workflow(query_handler=query_handler, storage=storage_provider)
-
     question:Question = Question(
         word_set={
             "organization": "Department of Defense",
@@ -28,8 +26,7 @@ async def test_one():
     print(f"Answer: {answer}")
 
 async def test_multiple():
-    storage_provider = SessionStorageProvider()
-    workflow = Workflow(query_handler=query_handler, storage=storage_provider)
+ 
 
     question_set = QuestionSet(
         template="What is the cybersecurity posture of the {organization} in {country}?",
@@ -45,5 +42,11 @@ async def test_multiple():
     async for ans in workflow.ask_questions(question_set):
         print(f"Answer: {ans}")
 
+async def main():
+    await test_one()
+    await test_multiple()
+    print("\n=====nDumping all stored answers:")
+    async for ans in workflow.dump_answers():
+        print(ans)
 
-asyncio.run(test_multiple())
+asyncio.run(main())

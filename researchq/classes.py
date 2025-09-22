@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import pandas as pd
 from itertools import product
 import math
-from typing import Dict, List, Any, Optional, Type, Union, Tuple, final
+from typing import Dict, List, Any, Optional, Type, Union, Tuple, final, AsyncIterable
 import json
 from pydantic import BaseModel, ValidationError
 
@@ -126,7 +126,8 @@ class StorageProvider(ABC):
     @abstractmethod
     async def delete_response(self, question: Question) -> None:
         raise NotImplementedError()
-
-    async def get_response_valid(self, question: Question) -> bool:
-        response = await self.get_response(question)
-        return response is not None
+    
+    @abstractmethod
+    async def get_stored_questions(self) -> AsyncIterable[Question]:
+        raise NotImplementedError()
+    

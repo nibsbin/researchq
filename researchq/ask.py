@@ -12,7 +12,7 @@ import asyncio
 
 @final
 class Workflow:
-    def __init__(self, query_handler:QueryHandler, storage: Optional[StorageProvider]=None, workers=2):
+    def __init__(self, query_handler:QueryHandler, storage: StorageProvider, workers=2):
         self.storage = storage
         self.query_handler = query_handler
         self.max_workers = workers
@@ -20,7 +20,7 @@ class Workflow:
     async def ask(self, question: Question, overwrite:bool = False) -> Answer:
         response = None
         
-        if self.storage and not overwrite:
+        if not overwrite:
             response = await self.storage.get_response(question)
             if response is not None:
                 print("Found cached response")
@@ -37,8 +37,7 @@ class Workflow:
  
         assert response is not None
         assert isinstance(response, QueryResponse)
-        if self.storage:
-            await self.storage.save_response(question, response)
+        await self.storage.save_response(question, response)
 
         answer = self.answer_from_response(question, response)
         return answer
@@ -71,3 +70,11 @@ class Workflow:
             answer = self.answer_from_response(question, response)
             answers.append(answer)
         return answers
+    
+    async def dump_answers(self):
+        async for question in self.storage.get_stored_questions():
+            answer = await self.storage.get_response(question)
+            print(f"Question: {question}")
+            print(f"Answer: {answer}")
+            print("-----")
+        yield answer
