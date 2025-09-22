@@ -19,14 +19,7 @@ word_sets = {
 
 research_questions = [
     "Does the department/ministry of {ministry_domain} in {country} have cybersecurity responsibilities?",
-
-
-
-
     "Does the department/ministry of {ministry_domain} in {country} handle cyber terrorism within its scope of responsibilities?",
-
-
-
     "Is the department/ministry of {ministry_domain} in {country} internally or externally focused?"
 ]
 
