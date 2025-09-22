@@ -40,16 +40,10 @@ class Workflow:
         if self.storage:
             await self.storage.save_response(question, response)
 
-        if not response.error:
-            assert response.full_response is not None
-            fields = self.query_handler.extract_fields(response.full_response)
-        else:
-            fields = {}
-        answer = Answer.from_question(question, response.full_response, fields)
+        answer = self.answer_from_response(question, response)
         return answer
 
-    # Requires storage to save responses
-    async def ask_question_set(self, question_set: QuestionSet, overwrite:bool=False):
+    async def ask_questions(self, question_set: QuestionSet, overwrite:bool=False):
         semaphore = asyncio.Semaphore(self.max_workers)
 
         async def process_question(question):
@@ -61,3 +55,12 @@ class Workflow:
         for coro in asyncio.as_completed(tasks):
             answer = await coro
             yield answer
+
+    def answer_from_response(self, question: Question, response: QueryResponse) -> Answer:
+        if not response.error:
+            assert response.full_response is not None
+            fields = self.query_handler.extract_fields(response.full_response)
+        else:
+            fields = {}
+        answer = Answer.from_question(question, response.full_response, fields)
+        return answer
