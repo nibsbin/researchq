@@ -11,7 +11,7 @@ from typing import final
 
 @final
 class Harness:
-    def __init__(self, query_handler:QueryHandler, storage: StorageProvider):
+    def __init__(self, query_handler:QueryHandler, storage: StorageProvider=None):
         self.storage = storage
         self.query_handler = query_handler
 
@@ -20,20 +20,16 @@ class Harness:
         prompt = question.get_string()
         response = await self.query_handler.query(prompt=prompt, response_model=response_model)
         full_response = response.full_response
-        self.storage.save_response(question, response.full_response)
+        if self.storage:
+            await self.storage.save_response(question, response.full_response)
         
         self.query_handler.extract_fields(full_response)
         answer = Answer.from_question(question, response.full_response)
         return answer
 
-    async def ask_question_set(self, question_set: QuestionSet, storage: Optional[QueryStorage] = None) -> list[Answer]:
-        word_set_keys = list(question_set.word_sets.keys())
-
-        answers = []
+    # Requires storage to save responses
+    async def ask_question_set(self, question_set: QuestionSet, storage: Optional[QueryStorage]) -> None:
         for question in question_set.get_questions():
             question.response_model = question_set.response_model
             answer = await self.ask_question(question)
-            answers.append(answer)
-            if storage:
-                await storage.save_query(question, answer)
-        return answers
+            await storage.save_query(question, answer)
