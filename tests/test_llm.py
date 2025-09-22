@@ -1,5 +1,5 @@
 """
-Pytest tests for the autora.llm module
+Pytest tests for the researchq.llm module
 """
 
 import pytest
@@ -42,6 +42,8 @@ class TestQuerySonar:
             mock_client.return_value.__aenter__.return_value = mock_instance
             mock_response_obj = AsyncMock()
             mock_response_obj.json.return_value = mock_response
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b'{"test": "content"}'
             mock_instance.post.return_value = mock_response_obj
 
             # Call function
@@ -79,6 +81,8 @@ class TestQuerySonar:
             mock_client.return_value.__aenter__.return_value = mock_instance
             mock_response_obj = AsyncMock()
             mock_response_obj.json.return_value = mock_response
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b'{"test": "content"}'
             mock_instance.post.return_value = mock_response_obj
 
             # Call function
@@ -103,6 +107,8 @@ class TestQuerySonar:
             mock_client.return_value.__aenter__.return_value = mock_instance
             mock_response_obj = AsyncMock()
             mock_response_obj.json.return_value = mock_response
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b'{"test": "content"}'
             mock_instance.post.return_value = mock_response_obj
 
             # Call function
@@ -137,11 +143,31 @@ class TestQuerySonar:
             mock_instance = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_instance
             mock_response_obj = MagicMock()
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b'invalid json'
             mock_response_obj.json.side_effect = ValueError("Invalid JSON")
+            mock_response_obj.status_code = 200
+            mock_response_obj.text = "invalid json response"
             mock_instance.post.return_value = mock_response_obj
 
             # Call function and expect exception
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Failed to parse JSON response"):
+                await query_sonar()
+
+    @pytest.mark.asyncio
+    async def test_query_sonar_empty_response(self):
+        """Test query_sonar handles empty response"""
+        with patch('httpx.AsyncClient') as mock_client:
+            # Setup mock
+            mock_instance = AsyncMock()
+            mock_client.return_value.__aenter__.return_value = mock_instance
+            mock_response_obj = MagicMock()
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b''  # Empty content
+            mock_instance.post.return_value = mock_response_obj
+
+            # Call function and expect exception
+            with pytest.raises(ValueError, match="Empty response from API"):
                 await query_sonar()
 
 
@@ -188,6 +214,8 @@ class TestQuerySonarWithContext:
             mock_client.return_value.__aenter__.return_value = mock_instance
             mock_response_obj = AsyncMock()
             mock_response_obj.json.return_value = mock_response
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b'{"test": "content"}'
             mock_instance.post.return_value = mock_response_obj
 
             # Call function
@@ -217,6 +245,8 @@ class TestQuerySonarWithContext:
             mock_client.return_value.__aenter__.return_value = mock_instance
             mock_response_obj = AsyncMock()
             mock_response_obj.json.return_value = mock_response
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b'{"test": "content"}'
             mock_instance.post.return_value = mock_response_obj
 
             # Call function
@@ -246,6 +276,8 @@ class TestQuerySonarWithContext:
             mock_client.return_value.__aenter__.return_value = mock_instance
             mock_response_obj = AsyncMock()
             mock_response_obj.json.return_value = mock_response
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b'{"test": "content"}'
             mock_instance.post.return_value = mock_response_obj
 
             # Call function
@@ -282,7 +314,7 @@ class TestAPIConfiguration:
     async def test_api_key_usage(self):
         """Test that API key is properly used in requests"""
         with patch('httpx.AsyncClient') as mock_client, \
-             patch('autora.llm.PERPLEXITY_API_KEY', 'test-api-key'):
+             patch('researchq.llm.PERPLEXITY_API_KEY', 'test-api-key'):
             
             # Setup mock
             mock_instance = AsyncMock()
@@ -304,7 +336,11 @@ class TestAPIConfiguration:
             # Setup mock
             mock_instance = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.post.return_value.json.return_value = {"test": "response"}
+            mock_response_obj = AsyncMock()
+            mock_response_obj.json.return_value = {"test": "response"}
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b'{"test": "response"}'
+            mock_instance.post.return_value = mock_response_obj
 
             # Call function
             await query_sonar()
@@ -333,7 +369,11 @@ class TestIntegrationScenarios:
             # Setup mock
             mock_instance = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.post.return_value.json.side_effect = mock_responses
+            mock_response_obj = AsyncMock()
+            mock_response_obj.raise_for_status.return_value = None
+            mock_response_obj.content = b'{"test": "content"}'
+            mock_instance.post.return_value = mock_response_obj
+            mock_response_obj.json.side_effect = mock_responses
 
             # First query
             initial_response = await query_sonar("Tell me about AI")
