@@ -8,7 +8,7 @@ import pytest
 import pandas as pd
 from datetime import datetime
 
-from autora.storage import QueryStorage, InMemoryStorage, SQLiteStorage, create_storage
+from researchq.storage import QueryStorage, InMemoryStorage, SQLiteStorage, create_storage
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@
 import asyncio
 import tempfile
 import os
-from autora.storage import InMemoryStorage, SQLiteStorage, create_storage
+from researchq.storage import InMemoryStorage, SQLiteStorage, create_storage
 
 
 async def demo_storage_basic():

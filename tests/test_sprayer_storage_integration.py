@@ -6,8 +6,8 @@ import os
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from autora.storage import InMemoryStorage, SQLiteStorage, create_storage
-from autora.sprayer import spray, process_single_query
+from researchq.storage import InMemoryStorage, SQLiteStorage, create_storage
+from researchq.sprayer import spray, process_single_query
 
 
 @pytest.fixture

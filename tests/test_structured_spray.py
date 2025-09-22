@@ -2,7 +2,7 @@
 
 import asyncio
 import pytest
-from autora.sprayer import spray
+from researchq.sprayer import spray
 from examples.pydantic_models import CybersecurityAssessment, SimpleYesNoResponse
 
 

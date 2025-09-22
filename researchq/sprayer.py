@@ -8,8 +8,8 @@ import traceback
 import json
 import time
 from pydantic import BaseModel
-from autora.llm import query_sonar, query_sonar_structured
-from autora.storage import QueryStorage, create_storage
+from researchq.llm import query_sonar, query_sonar_structured
+from researchq.storage import QueryStorage, create_storage
 
 #======== Define word sets and research questions ========
 

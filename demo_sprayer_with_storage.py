@@ -6,8 +6,8 @@ import tempfile
 import os
 from unittest.mock import AsyncMock, patch
 
-from autora.sprayer import spray, process_single_query
-from autora.storage import InMemoryStorage, SQLiteStorage
+from researchq.sprayer import spray, process_single_query
+from researchq.storage import InMemoryStorage, SQLiteStorage
 
 
 async def demo_sprayer_with_storage():
