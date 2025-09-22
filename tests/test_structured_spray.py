@@ -1,10 +1,12 @@
 """Test script demonstrating structured responses with Pydantic models"""
 
 import asyncio
+import pytest
 from autora.sprayer import spray
 from examples.pydantic_models import CybersecurityAssessment, SimpleYesNoResponse
 
 
+@pytest.mark.asyncio
 async def test_structured_spray():
     """Test the spray function with structured responses"""
     
@@ -26,7 +28,7 @@ async def test_structured_spray():
         df_simple = await spray(
             word_sets=simple_word_sets,
             research_questions=simple_questions,
-            delay_seconds=1.0,  # Slower for testing
+            delay_between_batches=1.0,  # Slower for testing
             response_model=SimpleYesNoResponse
         )
         
@@ -76,7 +78,7 @@ async def test_structured_spray():
         df_complex = await spray(
             word_sets=complex_word_sets,
             research_questions=complex_questions,
-            delay_seconds=1.0,
+            delay_between_batches=1.0,
             response_model=CybersecurityAssessment
         )
         

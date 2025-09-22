@@ -9,6 +9,7 @@ import json
 import time
 from pydantic import BaseModel
 from autora.llm import query_sonar, query_sonar_structured
+from autora.storage import QueryStorage, create_storage
 
 #======== Define word sets and research questions ========
 
@@ -32,12 +33,13 @@ research_questions = [
 
 #=========================================================
 
-async def process_single_query(task_data: Dict[str, Any]) -> Dict[str, Any]:
+async def process_single_query(task_data: Dict[str, Any], storage: Optional[QueryStorage] = None) -> Dict[str, Any]:
     """
-    Process a single query task and return the result row data.
+    Process a single query task and return/store the result row data.
     
     Args:
         task_data: Dictionary containing task information
+        storage: Optional QueryStorage instance to persist results
         
     Returns:
         Dictionary containing the processed row data
@@ -130,6 +132,7 @@ async def process_single_query(task_data: Dict[str, Any]) -> Dict[str, Any]:
     # Create row data
     row_data = word_dict.copy()
     row_data.update({
+        'query_id': str(query_id),
         'research_question': formatted_question,
         'sonar_response': response_content,
         'sonar_response_json': response_json,
@@ -137,7 +140,8 @@ async def process_single_query(task_data: Dict[str, Any]) -> Dict[str, Any]:
         'search_results': response_json.get('search_results', []) if isinstance(response_json, dict) else [],
         'citations': response_json.get('citations', []) if isinstance(response_json, dict) else [],
         'enriched_citations': enriched_citations,
-        'content': response_json.get('choices', [{}])[0].get('message', {}).get('content', '') if isinstance(response_json, dict) else ''
+        'content': response_json.get('choices', [{}])[0].get('message', {}).get('content', '') if isinstance(response_json, dict) else '',
+        'word_dict': word_dict  # Store word_dict for storage abstraction
     })
     
     # Add structured response data if using a response model
@@ -149,6 +153,10 @@ async def process_single_query(task_data: Dict[str, Any]) -> Dict[str, Any]:
             'retries_used': retries_used
         })
     
+    # Store result if storage is provided
+    if storage is not None:
+        await storage.store_query_result(row_data)
+    
     return row_data
 
 
@@ -158,7 +166,9 @@ async def spray(
     max_concurrent: int = 1,
     delay_between_batches: float = 0.5,
     response_model: Optional[Type[BaseModel]] = None,
-    max_queries: Optional[int] = None
+    max_queries: Optional[int] = None,
+    storage: Optional[Union[QueryStorage, str]] = None,
+    storage_config: Optional[Dict[str, Any]] = None
 ) -> pd.DataFrame:
     """
     Create a 2D table by permuting word sets and research questions,
@@ -176,11 +186,26 @@ async def spray(
         response_model: Optional Pydantic model class to structure the response.
                        If provided, uses structured queries with JSON schema validation.
         max_queries: Optional limit on total queries to process
+        storage: Storage instance or storage type string ("memory" or "sqlite").
+                If None, uses in-memory storage for backward compatibility.
+        storage_config: Additional configuration for storage (e.g., {"db_path": "custom.db"})
     
     Returns:
         pd.DataFrame: Table with columns for word set combinations, research questions, and API responses.
                      If response_model is provided, includes additional columns for structured data.
+                     Data is retrieved from storage to ensure consistency.
     """
+    # Set up storage
+    if storage is None:
+        storage_instance = create_storage("memory")
+    elif isinstance(storage, str):
+        config = storage_config or {}
+        storage_instance = create_storage(storage, **config)
+    elif isinstance(storage, QueryStorage):
+        storage_instance = storage
+    else:
+        raise ValueError("storage must be None, a string, or a QueryStorage instance")
+    
     # Use provided parameters or fall back to global variables
     current_word_sets = word_sets if word_sets is not None else globals()['word_sets']
     current_research_questions = research_questions if research_questions is not None else globals()['research_questions']
@@ -198,6 +223,7 @@ async def spray(
     print(f"Creating spray with {len(word_combinations)} word combinations and {len(current_research_questions)} research questions...")
     print(f"Total API calls to make: {total_queries}")
     print(f"Execution mode: {execution_mode} (max_concurrent={max_concurrent})")
+    print(f"Storage type: {type(storage_instance).__name__}")
     
     # Prepare all query tasks
     all_tasks = []
@@ -227,14 +253,12 @@ async def spray(
             break
     
     # Process tasks based on concurrency setting
-    table_data = []
     start_time = time.time()
     
     if max_concurrent <= 1:
         # Sequential processing
         for i, task_data in enumerate(all_tasks):
-            result = await process_single_query(task_data)
-            table_data.append(result)
+            await process_single_query(task_data, storage_instance)
             
             # Add configurable delay between queries (except for the last one)
             if i < len(all_tasks) - 1:
@@ -245,35 +269,37 @@ async def spray(
         
         async def process_with_semaphore(task_data):
             async with semaphore:
-                result = await process_single_query(task_data)
+                await process_single_query(task_data, storage_instance)
                 # Add delay to respect rate limits
                 await asyncio.sleep(delay_between_batches)
-                return result
         
         # Process all tasks concurrently
         tasks = [process_with_semaphore(task_data) for task_data in all_tasks]
-        table_data = await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
     
     elapsed_time = time.time() - start_time
-    print(f"\n✓ Completed {len(table_data)} queries in {elapsed_time:.2f} seconds")
-    if len(table_data) > 0:
-        print(f"  Average time per query: {elapsed_time/len(table_data):.2f}s")
+    print(f"\n✓ Completed {len(all_tasks)} queries in {elapsed_time:.2f} seconds")
+    if len(all_tasks) > 0:
+        print(f"  Average time per query: {elapsed_time/len(all_tasks):.2f}s")
     
-    # Create DataFrame
-    df = pd.DataFrame(table_data)
+    # Retrieve results from storage as DataFrame
+    df = await storage_instance.retrieve_as_dataframe()
     
-    # Reorder columns for better readability
-    base_columns = word_set_keys
-    other_columns = [
-        'question_template', 'research_question', 'sonar_response_json',
-        'search_results', 'citations', 'enriched_citations', 'content'
-    ]
-    
-    # Add structured response columns if using a response model
-    if response_model is not None:
-        other_columns.extend(['structured_data', 'parsing_success', 'parsing_error', 'retries_used'])
-    
-    df = df[base_columns + other_columns]
+    # Reorder columns for better readability if we have data
+    if len(df) > 0:
+        base_columns = word_set_keys
+        other_columns = [
+            'question_template', 'research_question', 'sonar_response_json',
+            'search_results', 'citations', 'enriched_citations', 'content'
+        ]
+        
+        # Add structured response columns if using a response model
+        if response_model is not None:
+            other_columns.extend(['structured_data', 'parsing_success', 'parsing_error', 'retries_used'])
+        
+        # Filter to only include columns that exist in the DataFrame
+        available_columns = [col for col in base_columns + other_columns if col in df.columns]
+        df = df[available_columns]
     
     return df
 
@@ -287,7 +313,9 @@ async def save_research_table(
     research_questions_param: List[str] = None,
     max_concurrent: int = 1,
     delay_between_batches: float = 0.5,
-    response_model: Optional[Type[BaseModel]] = None
+    response_model: Optional[Type[BaseModel]] = None,
+    storage_type: str = "memory",
+    storage_config: Optional[Dict[str, Any]] = None
 ) -> pd.DataFrame:
     """
     Create and save the research table to CSV and JSON files.
@@ -302,6 +330,8 @@ async def save_research_table(
         delay_between_batches: Delay between batches in seconds (default: 0.5)
         response_model: Optional Pydantic model class to structure the response.
                        If provided, uses structured queries with JSON schema validation.
+        storage_type: Type of storage to use ("memory" or "sqlite")
+        storage_config: Additional configuration for storage
         
     Returns:
         pd.DataFrame: The created table
@@ -315,7 +345,9 @@ async def save_research_table(
         research_questions=research_questions_param,
         max_concurrent=max_concurrent,
         delay_between_batches=delay_between_batches,
-        response_model=response_model
+        response_model=response_model,
+        storage=storage_type,
+        storage_config=storage_config
     )
     
     print(f"\n{'='*20} SAVING RESULTS {'='*20}")
@@ -339,24 +371,26 @@ async def save_research_table(
     current_research_questions = research_questions_param if research_questions_param is not None else research_questions
     
     print(f"\n{'='*20} TABLE SUMMARY {'='*20}")
-    print(f"Word set combinations: {len(df.groupby(list(current_word_sets.keys())))}")
-    print(f"Research questions: {len(current_research_questions)}")
-    print(f"Total rows: {len(df)}")
-    
-    print(f"\n{'='*20} SAMPLE DATA {'='*20}")
-    # Show first few rows in a prettier format
-    word_set_keys = list(current_word_sets.keys())
-    for i, (idx, row) in enumerate(df.head(3).iterrows()):
-        print(f"\n--- Row {i+1} ---")
-        # Show word set values
-        for key in word_set_keys:
-            print(f"{key}: {row[key]}")
-        print(f"Question: {row['research_question']}")
-        response_preview = row['sonar_response'][:150] + "..." if len(row['sonar_response']) > 150 else row['sonar_response']
-        print(f"Response: {response_preview}")
-    
-    if len(df) > 3:
-        print(f"\n... and {len(df) - 3} more rows")
+    if len(df) > 0:
+        print(f"Word set combinations: {len(df.groupby(list(current_word_sets.keys())))}")
+        print(f"Research questions: {len(current_research_questions)}")
+        print(f"Total rows: {len(df)}")
+        
+        print(f"\n{'='*20} SAMPLE DATA {'='*20}")
+        # Show first few rows in a prettier format
+        word_set_keys = list(current_word_sets.keys())
+        for i, (idx, row) in enumerate(df.head(3).iterrows()):
+            print(f"\n--- Row {i+1} ---")
+            # Show word set values
+            for key in word_set_keys:
+                if key in row:
+                    print(f"{key}: {row[key]}")
+            print(f"Question: {row['research_question']}")
+            response_preview = row['sonar_response'][:150] + "..." if len(str(row['sonar_response'])) > 150 else row['sonar_response']
+            print(f"Response: {response_preview}")
+        
+        if len(df) > 3:
+            print(f"\n... and {len(df) - 3} more rows")
     
     print(f"\n{'='*20} COLUMN INFO {'='*20}")
     print("Columns in the table:")
@@ -526,7 +560,9 @@ async def save_research_table_concurrent(
     research_questions_param: List[str] = None,
     max_concurrent: int = 5,
     delay_between_batches: float = 1.0,
-    response_model: Optional[Type[BaseModel]] = None
+    response_model: Optional[Type[BaseModel]] = None,
+    storage_type: str = "memory",
+    storage_config: Optional[Dict[str, Any]] = None
 ) -> pd.DataFrame:
     """
     Create and save the research table using concurrent processing.
@@ -538,6 +574,8 @@ async def save_research_table_concurrent(
         max_concurrent: Maximum number of concurrent API calls
         delay_between_batches: Delay between batches in seconds
         response_model: Optional Pydantic model class to structure the response.
+        storage_type: Type of storage to use ("memory" or "sqlite")
+        storage_config: Additional configuration for storage
         
     Returns:
         pd.DataFrame: The created table
@@ -551,7 +589,9 @@ async def save_research_table_concurrent(
         research_questions=research_questions_param,
         max_concurrent=max_concurrent,
         delay_between_batches=delay_between_batches,
-        response_model=response_model
+        response_model=response_model,
+        storage=storage_type,
+        storage_config=storage_config
     )
     
     print(f"\n{'='*20} SAVING RESULTS {'='*20}")
@@ -559,7 +599,8 @@ async def save_research_table_concurrent(
     # Save as CSV (with JSON as string for compatibility)
     csv_filename = f"{filename}.csv"
     df_csv = df.copy()
-    df_csv['sonar_response_json'] = df_csv['sonar_response_json'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
+    if 'sonar_response_json' in df_csv.columns:
+        df_csv['sonar_response_json'] = df_csv['sonar_response_json'].apply(lambda x: json.dumps(x) if isinstance(x, dict) else str(x))
     df_csv.to_csv(csv_filename, index=False)
     print(f"✓ Saved CSV to {csv_filename}")
     
@@ -576,21 +617,26 @@ async def save_research_table_concurrent(
     
     print(f"\n{'='*20} TABLE SUMMARY {'='*20}")
     if len(df) > 0:
-        print(f"Word set combinations: {len(df.groupby(list(current_word_sets.keys())))}")
+        # Get available word set keys from DataFrame columns
+        word_set_keys = [key for key in current_word_sets.keys() if key in df.columns]
+        if word_set_keys:
+            print(f"Word set combinations: {len(df.groupby(word_set_keys))}")
         print(f"Research questions: {len(current_research_questions)}")
         print(f"Total rows: {len(df)}")
         
         print(f"\n{'='*20} SAMPLE DATA {'='*20}")
         # Show first few rows in a prettier format
-        word_set_keys = list(current_word_sets.keys())
         for i, (idx, row) in enumerate(df.head(3).iterrows()):
             print(f"\n--- Row {i+1} ---")
             # Show word set values
             for key in word_set_keys:
-                print(f"{key}: {row[key]}")
-            print(f"Question: {row['research_question']}")
-            response_preview = row['sonar_response'][:150] + "..." if len(row['sonar_response']) > 150 else row['sonar_response']
-            print(f"Response: {response_preview}")
+                if key in row:
+                    print(f"{key}: {row[key]}")
+            if 'research_question' in row:
+                print(f"Question: {row['research_question']}")
+            if 'sonar_response' in row:
+                response_preview = str(row['sonar_response'])[:150] + "..." if len(str(row['sonar_response'])) > 150 else str(row['sonar_response'])
+                print(f"Response: {response_preview}")
         
         if len(df) > 3:
             print(f"\n... and {len(df) - 3} more rows")
