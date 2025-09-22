@@ -10,7 +10,7 @@ from classes import Answer, StorageProvider, QueryHandler, Question, QuestionSet
 from typing import final
 
 @final
-class Harness:
+class Workflow:
     def __init__(self, query_handler:QueryHandler, storage: StorageProvider=None):
         self.storage = storage
         self.query_handler = query_handler
