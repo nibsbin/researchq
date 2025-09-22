@@ -64,3 +64,10 @@ class Workflow:
             fields = {}
         answer = Answer.from_question(question, response.full_response, fields)
         return answer
+    
+    def answer_from_responses(self, question: Question, responses: list[QueryResponse]) -> list[Answer]:
+        answers = []
+        for response in responses:
+            answer = self.answer_from_response(question, response)
+            answers.append(answer)
+        return answers
