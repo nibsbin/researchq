@@ -5,31 +5,40 @@ from pydantic import BaseModel
 from string import Template
 from typing import Type
 from abc import ABC
-from classes import Answer, StorageProvider, QueryHandler, Question, QuestionSet
+from researchq.classes import Answer, StorageProvider, QueryHandler, Question, QuestionSet
 
 from typing import final
+import asyncio
 
 @final
 class Workflow:
-    def __init__(self, query_handler:QueryHandler, storage: StorageProvider=None):
+    def __init__(self, query_handler:QueryHandler, storage: Optional[StorageProvider]=None, workers=2):
         self.storage = storage
         self.query_handler = query_handler
+        self.max_workers = workers
 
-    async def ask_question(self, question: Question) -> Answer:
-        response_model: Type[BaseModel] = question.response_model
+    async def ask(self, question: Question) -> Answer:
         prompt = question.get_string
-        response = await self.query_handler.query(prompt=prompt, response_model=response_model)
-        full_response = response.full_response
+        response = await self.query_handler.query(prompt=prompt)
+
+        assert response.full_response is not None
         if self.storage:
             await self.storage.save_response(question, response.full_response)
         
-        fields = self.query_handler.extract_fields(full_response) if full_response else {}
+        fields = self.query_handler.extract_fields(response.full_response)
         answer = Answer.from_question(question, response.full_response, fields)
         return answer
 
     # Requires storage to save responses
-    async def ask_question_set(self, question_set: QuestionSet, storage: Optional[StorageProvider]) -> None:
-        for question in question_set.get_questions():
-            question.response_model = question_set.response_model
-            answer = await self.ask_question(question)
-            await storage.save_query(question, answer)
+    async def ask_question_set(self, question_set: QuestionSet):
+        semaphore = asyncio.Semaphore(self.max_workers)
+
+        async def process_question(question):
+            async with semaphore:
+                question.response_model = question_set.response_model
+                return await self.ask(question)
+
+        tasks = [process_question(q) for q in question_set.get_questions()]
+        for coro in asyncio.as_completed(tasks):
+            answer = await coro
+            yield answer

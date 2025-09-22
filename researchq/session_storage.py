@@ -1,7 +1,7 @@
 """Simple in-memory storage provider implementation."""
 
 from typing import Dict, Any
-from classes import StorageProvider, Question
+from researchq.classes import StorageProvider, Question
 
 
 class SessionStorageProvider(StorageProvider):

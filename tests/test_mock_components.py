@@ -180,7 +180,7 @@ class TestWorkflowIntegration:
         )
         
         # Process question through workflow
-        answer = await self.workflow.ask_question(question)
+        answer = await self.workflow.ask(question)
         
         # Verify answer structure
         assert answer.word_set == question.word_set

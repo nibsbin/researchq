@@ -14,19 +14,26 @@ from pydantic import BaseModel, ValidationError
 
 
 class Question:
-    def __init__(self, word_set: Dict[str, str], template: Template, response_model:Type[BaseModel]):
+    def __init__(self, word_set: Dict[str, str], template: Template|str, response_model:Type[BaseModel]):
+        if isinstance(template, str):
+            template = Template(template)
         self.word_set = word_set
-        self.template = template
+        self.template:Template = template
         self.response_model = response_model
 
     @property
     def get_string(self) -> str:
         return self.template.substitute(**self.word_set)
     
+    def __repr__(self) -> str:
+        return f"Question(template={self.template.template}, word_set={self.word_set})"
+    
 
 class QuestionSet:
-    def __init__(self, template: Template, word_sets: Dict[str, List[str]], response_model:Type[BaseModel]):
-        self.template = template
+    def __init__(self, template: Template|str, word_sets: Dict[str, List[str]], response_model:Type[BaseModel]):
+        if isinstance(template, str):
+            template = Template(template)
+        self.template:Template = template
         self.word_sets = word_sets
         self.response_model = response_model
 
@@ -80,6 +87,8 @@ class Answer:
         df = pd.DataFrame([data])
         return df
 
+    def __repr__(self) -> str:
+        return f"Answer(question='{self.question_value}', fields={self.fields}, error={self.error})"
 @final
 class QueryResponse:
     full_response: Optional[Dict[str, Any]] = None
@@ -94,7 +103,7 @@ class QueryResponse:
 
 
 class QueryHandler(ABC):
-    def query(self, prompt:str, response_model:Type[BaseModel]) -> QueryResponse:
+    async def query(self, prompt:str) -> QueryResponse:
         raise NotImplementedError()
     
     def extract_fields(self, full_response:Dict[str,Any]) -> dict[str,Any]:

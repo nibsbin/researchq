@@ -2,14 +2,14 @@
 
 from typing import Any, Dict, Type
 from pydantic import BaseModel, Field
-from classes import QueryHandler, QueryResponse
+from researchq.classes import QueryHandler, QueryResponse
 
 
 class MockResponseModel(BaseModel):
-    """Mock response model for demonstration with cybersecurity_level and explanation fields."""
+    """Mock response model for demonstration with relevance and explanation fields."""
     
-    cybersecurity_level: int = Field(
-        description="Cybersecurity level assessment from 1 to 10, where 1 is minimal and 10 is maximum security"
+    relevance: int = Field(
+        description="Relevance score of 0 (none), 1 (low), 2 (medium), 3 (high)", ge=0, le=3
     )
     
     explanation: str = Field(
@@ -23,7 +23,7 @@ class MockQueryHandler(QueryHandler):
     def __init__(self, response_model: Type[BaseModel] = None):
         self.response_model = response_model or MockResponseModel
     
-    async def query(self, prompt: str, response_model: Type[BaseModel]) -> QueryResponse:
+    async def query(self, prompt: str) -> QueryResponse:
         """Return a mock response that is structurally similar to SonarQueryHandler."""
         
         # Create mock response that mimics the structure of Perplexity API response
@@ -31,7 +31,7 @@ class MockQueryHandler(QueryHandler):
             "choices": [
                 {
                     "message": {
-                        "content": '{"cybersecurity_level": 7, "explanation": "This is a mock response demonstrating a moderate cybersecurity level with detailed explanation about security practices and recommendations."}'
+                        "content": '{"relevance": 7, "explanation": "This is a mock response demonstrating a moderate cybersecurity level with detailed explanation about security practices and recommendations."}'
                     },
                     "finish_reason": "stop"
                 }
@@ -84,7 +84,7 @@ class MockQueryHandler(QueryHandler):
         except (json.JSONDecodeError, Exception):
             # Fallback to default values if parsing fails
             content = self.response_model(
-                cybersecurity_level=5,
+                relevance=2,
                 explanation="Default mock response - unable to parse structured content"
             )
             content_dict = content.model_dump()

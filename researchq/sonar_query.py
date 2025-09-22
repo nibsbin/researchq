@@ -7,7 +7,7 @@ from pydantic import BaseModel, ValidationError
 from researchq.CONFIG import PERPLEXITY_API_KEY
 
 from collections import namedtuple
-from classes import QueryHandler, QueryResponse
+from researchq.classes import QueryHandler, QueryResponse
 
 class SonarQueryHandler(QueryHandler):
     response_model: Type[BaseModel]
@@ -18,8 +18,8 @@ class SonarQueryHandler(QueryHandler):
         self.model = model
         self.max_retries = max_retries
     
-    async def query(self, prompt:str, response_model:Type[BaseModel]) -> QueryResponse:
-        schema = response_model.model_json_schema()
+    async def query(self, prompt:str) -> QueryResponse:
+        schema = self.response_model.model_json_schema()
         enhanced_prompt = f"""{prompt}\n\nPlease provide comprehensive information and format your response according to the specified JSON schema structure. Pay attention to the field descriptions in the schema to understand what information is expected for each field.\n\nJSON Schema:\n{json.dumps(schema, indent=2)}"""
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:

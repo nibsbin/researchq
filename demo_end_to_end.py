@@ -129,7 +129,7 @@ async def demo_workflow():
         print(f"   Question: {question.get_string}")
         
         try:
-            answer = await workflow.ask_question(question)
+            answer = await workflow.ask(question)
             answers.append(answer)
             
             print(f"   ✓ Answer received")
