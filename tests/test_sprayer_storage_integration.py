@@ -53,7 +53,7 @@ class TestSprayerStorageIntegration:
         }
         
         # Mock the LLM query
-        with patch('autora.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
+        with patch('researchq.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
             mock_query.return_value = mock_query_response
             
             # Process query with storage
@@ -86,7 +86,7 @@ class TestSprayerStorageIntegration:
         }
         
         # Mock the LLM query
-        with patch('autora.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
+        with patch('researchq.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
             mock_query.return_value = mock_query_response
             
             # Process query with storage
@@ -114,7 +114,7 @@ class TestSprayerStorageIntegration:
         questions = ['Does {ministry_domain} in {country} have cybersecurity responsibilities?']
         
         # Mock the LLM query
-        with patch('autora.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
+        with patch('researchq.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
             mock_query.return_value = mock_query_response
             
             # Run spray with memory storage
@@ -150,7 +150,7 @@ class TestSprayerStorageIntegration:
         storage_config = {'db_path': temp_db_path}
         
         # Mock the LLM query
-        with patch('autora.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
+        with patch('researchq.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
             mock_query.return_value = mock_query_response
             
             # Run spray with SQLite storage
@@ -188,7 +188,7 @@ class TestSprayerStorageIntegration:
         questions = ['Does {ministry_domain} in {country} have cybersecurity responsibilities?']
         
         # Mock the LLM query
-        with patch('autora.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
+        with patch('researchq.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
             mock_query.return_value = mock_query_response
             
             # Run spray with storage instance
@@ -218,7 +218,7 @@ class TestSprayerStorageIntegration:
         questions = ['Does {ministry_domain} in {country} have cybersecurity responsibilities?']
         
         # Mock the LLM query
-        with patch('autora.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
+        with patch('researchq.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
             mock_query.return_value = mock_query_response
             
             # Run spray without storage parameter (should default to memory)
@@ -262,7 +262,7 @@ class TestSprayerStorageIntegration:
         }
         
         # Mock the structured LLM query
-        with patch('autora.sprayer.query_sonar_structured', new_callable=AsyncMock) as mock_query:
+        with patch('researchq.sprayer.query_sonar_structured', new_callable=AsyncMock) as mock_query:
             mock_query.return_value = mock_structured_result
             
             # Run spray with structured response and SQLite storage
@@ -303,7 +303,7 @@ class TestSprayerStorageIntegration:
         }
         
         # Mock an exception in the LLM query
-        with patch('autora.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
+        with patch('researchq.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
             mock_query.side_effect = Exception("API Error")
             
             # Process query with storage

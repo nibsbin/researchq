@@ -42,7 +42,7 @@ async def demo_sprayer_with_storage():
         'Does the department/ministry of {ministry_domain} in {country} have cybersecurity responsibilities?'
     ]
     
-    with patch('autora.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
+    with patch('researchq.sprayer.query_sonar', new_callable=AsyncMock) as mock_query:
         mock_query.return_value = mock_response
         
         # Test 1: Memory Storage
@@ -155,7 +155,7 @@ async def demo_structured_with_storage():
         word_sets = {'ministry_domain': ['Energy'], 'country': ['USA']}
         questions = ['Does {ministry_domain} in {country} have cybersecurity responsibilities?']
         
-        with patch('autora.sprayer.query_sonar_structured', new_callable=AsyncMock) as mock_query:
+        with patch('researchq.sprayer.query_sonar_structured', new_callable=AsyncMock) as mock_query:
             mock_query.return_value = mock_structured_result
             
             # Create temporary database for structured data

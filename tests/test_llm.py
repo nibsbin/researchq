@@ -126,13 +126,15 @@ class TestQuerySonar:
     async def test_query_sonar_http_error(self):
         """Test query_sonar handles HTTP errors"""
         with patch('httpx.AsyncClient') as mock_client:
-            # Setup mock to raise an exception
+            # Setup mock to raise an HTTP status error
             mock_instance = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.post.side_effect = httpx.HTTPError("Network error")
+            mock_response_obj = MagicMock()
+            mock_response_obj.raise_for_status.side_effect = httpx.HTTPStatusError("404 Not Found", request=None, response=None)
+            mock_instance.post.return_value = mock_response_obj
 
             # Call function and expect exception
-            with pytest.raises(httpx.HTTPError):
+            with pytest.raises(httpx.HTTPStatusError):
                 await query_sonar()
 
     @pytest.mark.asyncio
@@ -297,13 +299,15 @@ class TestQuerySonarWithContext:
         current_prompt = "What are the latest developments?"
         
         with patch('httpx.AsyncClient') as mock_client:
-            # Setup mock to raise an exception
+            # Setup mock to raise an HTTP status error
             mock_instance = AsyncMock()
             mock_client.return_value.__aenter__.return_value = mock_instance
-            mock_instance.post.side_effect = httpx.HTTPError("API rate limit exceeded")
+            mock_response_obj = MagicMock()
+            mock_response_obj.raise_for_status.side_effect = httpx.HTTPStatusError("500 Server Error", request=None, response=None)
+            mock_instance.post.return_value = mock_response_obj
 
             # Call function and expect exception
-            with pytest.raises(httpx.HTTPError):
+            with pytest.raises(httpx.HTTPStatusError):
                 await query_sonar_with_context(current_prompt, sample_context)
 
 
