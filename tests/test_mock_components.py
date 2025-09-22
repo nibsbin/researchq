@@ -184,7 +184,7 @@ class TestWorkflowIntegration:
         
         # Verify answer structure
         assert answer.word_set == question.word_set
-        assert answer.question_value == question.get_string()
+        assert answer.question_value == question.value()
         assert answer.full_response is not None
         assert answer.fields is not None
         

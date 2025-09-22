@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from string import Template
 from typing import Type
 from abc import ABC
-from researchq.classes import Answer, StorageProvider, QueryHandler, Question, QuestionSet
+from researchq.classes import Answer, StorageProvider, QueryHandler, Question, QuestionSet, QueryResponse
 
 from typing import final
 import asyncio
@@ -17,20 +17,39 @@ class Workflow:
         self.query_handler = query_handler
         self.max_workers = workers
 
-    async def ask(self, question: Question) -> Answer:
-        prompt = question.get_string
-        response = await self.query_handler.query(prompt=prompt)
-
-        assert response.full_response is not None
-        if self.storage:
-            await self.storage.save_response(question, response.full_response)
+    async def ask(self, question: Question, overwrite:bool = False) -> Answer:
+        response = None
         
-        fields = self.query_handler.extract_fields(response.full_response)
+        if self.storage and not overwrite:
+            response = await self.storage.get_response(question)
+            if response is not None:
+                print("Found cached response")
+                if response.error:
+                    print("Cached response has error, flushing:", response.error)
+                    response = None
+                else:
+                    print("Using cached response")
+                    print(response)
+
+        if response is None:
+            prompt = question.value
+            response = await self.query_handler.query(prompt=prompt)
+ 
+        assert response is not None
+        assert isinstance(response, QueryResponse)
+        if self.storage:
+            await self.storage.save_response(question, response)
+
+        if not response.error:
+            assert response.full_response is not None
+            fields = self.query_handler.extract_fields(response.full_response)
+        else:
+            fields = {}
         answer = Answer.from_question(question, response.full_response, fields)
         return answer
 
     # Requires storage to save responses
-    async def ask_question_set(self, question_set: QuestionSet):
+    async def ask_question_set(self, question_set: QuestionSet, overwrite:bool=False):
         semaphore = asyncio.Semaphore(self.max_workers)
 
         async def process_question(question):

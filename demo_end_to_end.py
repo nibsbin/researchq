@@ -118,7 +118,7 @@ async def demo_workflow():
     ]
     
     for i, question in enumerate(questions, 1):
-        print(f"   Question {i}: {question.get_string}")
+        print(f"   Question {i}: {question.value}")
     
     # 3. Process questions through workflow
     print(f"\n3. Processing {len(questions)} questions through workflow...")
@@ -126,7 +126,7 @@ async def demo_workflow():
     
     for i, question in enumerate(questions, 1):
         print(f"\n   Processing Question {i}...")
-        print(f"   Question: {question.get_string}")
+        print(f"   Question: {question.value}")
         
         try:
             answer = await workflow.ask(question)
@@ -183,10 +183,10 @@ async def demo_detailed_analysis():
         response_model=MockResponseModel
     )
     
-    print(f"\nQuestion: {question.get_string}")
+    print(f"\nQuestion: {question.value}")
     
     # Get raw response
-    response = await mock_handler.query(question.get_string, MockResponseModel)
+    response = await mock_handler.query(question.value, MockResponseModel)
     print(f"\nRaw Response Structure:")
     print(f"- Has full_response: {response.full_response is not None}")
     print(f"- Has error: {response.error is not None}")

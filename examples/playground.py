@@ -8,7 +8,7 @@ from researchq.sonar_query import SonarQueryHandler
 
 async def test_one():
 
-    query_handler = SonarQueryHandler(MockResponseModel)
+    query_handler = MockQueryHandler(MockResponseModel)
     storage_provider = SessionStorageProvider()
     workflow = Workflow(query_handler=query_handler, storage=storage_provider)
 
@@ -29,7 +29,7 @@ async def test_one():
 
 async def test_multiple():
     
-    query_handler = SonarQueryHandler(MockResponseModel)
+    query_handler = MockQueryHandler(MockResponseModel)
     storage_provider = SessionStorageProvider()
     workflow = Workflow(query_handler=query_handler, storage=storage_provider)
 
