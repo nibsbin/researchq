@@ -10,7 +10,7 @@ import json
 from string import Template
 from pydantic import BaseModel, ValidationError
 
-from researchq.storage import QueryStorage
+# Removed the storage import since it doesn't exist
 
 
 class Question:
@@ -38,7 +38,7 @@ class QuestionSet:
         questions = []
         for combo in combos:
             word_set = dict(zip(self.word_sets.keys(), combo))
-            questions.append(Question(word_set, self.template))
+            questions.append(Question(word_set, self.template, self.response_model))
         return questions
     
 @final
@@ -48,21 +48,25 @@ class Answer:
     question_template: Template
     question_value: str
     full_response: dict
+    fields: dict
     error: Optional[str] = None
 
-    def __init__(self, word_set: dict, question_template: Template, question_value: str, response_json: dict):
+    def __init__(self, word_set: dict, question_template: Template, question_value: str, response_json: dict, fields: dict = None):
         self.word_set = word_set
         self.question_template = question_template
         self.question_value = question_value
         self.full_response = response_json
+        self.fields = fields or {}
 
     @staticmethod
-    def from_question(question:Question, full_response:Dict[str,Any], fields: Dict[str,Any]) -> 'Answer':
+    def from_question(question:Question, full_response:Dict[str,Any], fields: Dict[str,Any] = None) -> 'Answer':
+        if fields is None:
+            fields = {}
         answer = Answer(
             word_set=question.word_set,
             question_template=question.template,
             question_value=question.get_string,
-            response_json=full_response
+            response_json=full_response,
             fields=fields
         )
         return answer
