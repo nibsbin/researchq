@@ -5,12 +5,12 @@ from pydantic import BaseModel
 import pandas as pd
 from itertools import product
 import math
-from typing import Dict, List, Any, Optional, Type, Union, Tuple, final, AsyncIterable
+from typing import Dict, List, Any, Optional, Type, Union, Tuple, final, AsyncIterable, cast
 import json
 from pydantic import BaseModel, ValidationError
+import pandas as pd
 
 # Removed the storage import since it doesn't exist
-
 
 class Question:
     def __init__(self, word_set: Dict[str, str], template: str, response_model:Type[BaseModel]):
@@ -79,6 +79,7 @@ class Answer:
         )
         return answer
     
+    @property
     def flattened(self) -> pd.DataFrame:
         data = {
             'question': self.question_value,
@@ -94,6 +95,7 @@ class Answer:
 
     def __repr__(self) -> str:
         return f"Answer(question='{self.question_value}', fields={self.fields}, error={self.error})"
+
 @final
 class QueryResponse:
     full_response: Optional[Dict[str, Any]] = None
@@ -130,4 +132,4 @@ class StorageProvider(ABC):
     @abstractmethod
     async def get_stored_questions(self) -> AsyncIterable[Question]:
         raise NotImplementedError()
-    
+        yield cast(Question, None)

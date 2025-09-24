@@ -1,7 +1,7 @@
 import robora
 import asyncio
 from robora.classes import Question, QuestionSet, Answer
-from robora.ask import Workflow
+from robora.workflow import Workflow
 from robora.session_storage import SessionStorageProvider
 from robora.mock_query import MockQueryHandler, MockResponseModel
 from robora.sonar_query import SonarQueryHandler
@@ -39,7 +39,7 @@ async def test_multiple():
     print(f"QuestionSet: {question_set}")
     print("asking...")
 
-    async for ans in workflow.ask_questions(question_set):
+    async for ans in workflow.ask_multiple(question_set):
         print(f"Answer: {ans}")
 
 async def main():

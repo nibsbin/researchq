@@ -6,7 +6,7 @@ from string import Template
 from robora.mock_query import MockQueryHandler, MockResponseModel
 from robora.session_storage import SessionStorageProvider
 from robora.classes import Question
-from robora.ask import Workflow
+from robora.workflow import Workflow
 
 
 class TestMockResponseModel:

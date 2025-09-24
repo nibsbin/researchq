@@ -42,7 +42,7 @@ class Workflow:
         answer = self.answer_from_response(question, response)
         return answer
 
-    async def ask_questions(self, question_set: QuestionSet, overwrite:bool=False):
+    async def ask_multiple(self, question_set: QuestionSet, overwrite:bool=False):
         semaphore = asyncio.Semaphore(self.max_workers)
 
         async def process_question(question):
@@ -64,17 +64,8 @@ class Workflow:
         answer = Answer.from_question(question, response.full_response, fields)
         return answer
     
-    def answer_from_responses(self, question: Question, responses: list[QueryResponse]) -> list[Answer]:
-        answers = []
-        for response in responses:
-            answer = self.answer_from_response(question, response)
-            answers.append(answer)
-        return answers
-    
     async def dump_answers(self):
         async for question in self.storage.get_stored_questions():
-            answer = await self.storage.get_response(question)
-            print(f"Question: {question}")
-            print(f"Answer: {answer}")
-            print("-----")
-        yield answer
+            response = await self.storage.get_response(question)
+            answer = self.answer_from_response(question, response)
+            yield answer
