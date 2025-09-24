@@ -4,15 +4,4 @@ from .classes import Question, QuestionSet, Answer, QueryResponse, QueryHandler,
 from .session_storage import SessionStorageProvider
 from .sqlite_storage import SQLiteStorageProvider
 from .workflow import Workflow
-
-__all__ = [
-    'Question',
-    'QuestionSet', 
-    'Answer',
-    'QueryResponse',
-    'QueryHandler',
-    'StorageProvider',
-    'SessionStorageProvider',
-    'SQLiteStorageProvider',
-    'Workflow'
-]
+from .sonar_query import SonarQueryHandler

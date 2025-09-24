@@ -69,3 +69,4 @@ class Workflow:
             response = await self.storage.get_response(question)
             answer = self.answer_from_response(question, response)
             yield answer
+
