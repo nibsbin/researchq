@@ -32,10 +32,11 @@ class Question:
     
 
 class QuestionSet:
-    def __init__(self, template: str, word_sets: Dict[str, List[str]], response_model:Type[BaseModel]):
+    def __init__(self, template: str, word_sets: Dict[str, List[str]], response_model:Type[BaseModel], max_questions: Optional[int]=None):
         self.template = template
         self.word_sets = word_sets
         self.response_model = response_model
+        self.max_questions = max_questions
 
     def get_count(self) -> int:
         return math.prod(len(v) for v in self.word_sets.values())
@@ -43,7 +44,9 @@ class QuestionSet:
     def get_questions(self) -> List[Question]:
         combos = product(*(self.word_sets.values()))
         questions = []
-        for combo in combos:
+        for i,combo in enumerate(combos):
+            if (self.max_questions is not None and self.max_questions > 0) and i >= self.max_questions:
+                break
             word_set = dict(zip(self.word_sets.keys(), combo))
             questions.append(Question(word_set, self.template, self.response_model))
         return questions
@@ -97,7 +100,8 @@ class Answer:
         return df
 
     def __repr__(self) -> str:
-        return f"Answer(question='{self.question_value}', fields={self.fields}, error={self.error})"
+        short_response = str(self.full_response)[:80] + "..." if self.full_response else None
+        return f"Answer(question='{self.question_value}', word_set={self.word_set}, fields={self.fields}, error={self.error}, full_response={short_response})"
 
 @final
 class QueryResponse:
