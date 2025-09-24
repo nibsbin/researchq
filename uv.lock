@@ -326,7 +326,7 @@ wheels = [
 ]
 
 [[package]]
-name = "researchq"
+name = "robora"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

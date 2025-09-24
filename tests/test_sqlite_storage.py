@@ -5,8 +5,8 @@ import asyncio
 import tempfile
 import os
 from pathlib import Path
-from researchq.sqlite_storage import SQLiteStorageProvider
-from researchq.classes import Question, QueryResponse
+from robora.sqlite_storage import SQLiteStorageProvider
+from robora.classes import Question, QueryResponse
 
 
 class MockResponseModel:

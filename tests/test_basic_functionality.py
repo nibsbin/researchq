@@ -6,8 +6,8 @@ import os
 import json
 from string import Template
 
-# Add the researchq module to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'researchq'))
+# Add the robora module to the path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'robora'))
 
 # Mock the missing imports since we can't install them
 class MockBaseModel:

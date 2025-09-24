@@ -6,8 +6,8 @@ import sys
 import os
 from string import Template
 
-# Add the researchq module to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'researchq'))
+# Add the robora module to the path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'robora'))
 
 # Mock the missing imports since we can't install them
 class MockBaseModel:
@@ -65,10 +65,10 @@ sys.modules['dotenv'].load_dotenv = mock_load_dotenv
 sys.modules['python-dotenv'] = type(sys)('python-dotenv')
 
 # Now import our modules
-from researchq.ask import Workflow
-from researchq.mock_query import MockQueryHandler, MockResponseModel
-from researchq.session_storage import SessionStorageProvider
-from researchq.classes import Question
+from robora.ask import Workflow
+from robora.mock_query import MockQueryHandler, MockResponseModel
+from robora.session_storage import SessionStorageProvider
+from robora.classes import Question
 
 
 async def demo_workflow():

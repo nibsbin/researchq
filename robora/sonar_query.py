@@ -4,10 +4,10 @@ import json
 import asyncio
 from pydantic import BaseModel, ValidationError
 
-from researchq.CONFIG import PERPLEXITY_API_KEY
+from robora.CONFIG import PERPLEXITY_API_KEY
 
 from collections import namedtuple
-from researchq.classes import QueryHandler, QueryResponse
+from robora.classes import QueryHandler, QueryResponse
 
 class SonarQueryHandler(QueryHandler):
     response_model: Type[BaseModel]

@@ -6,11 +6,11 @@ The `SQLiteStorageProvider` provides persistent storage for question/response pa
 
 ```python
 import asyncio
-from researchq import Question, QueryResponse, SQLiteStorageProvider
+from robora import Question, QueryResponse, SQLiteStorageProvider
 
 async def example():
     # Initialize with default database name
-    storage = SQLiteStorageProvider()  # Creates "researchq.db"
+    storage = SQLiteStorageProvider()  # Creates "robora.db"
     
     # Or specify a custom database path
     storage = SQLiteStorageProvider("my_research.db")
@@ -44,8 +44,8 @@ The SQLite storage provider can be used directly with the `Workflow` class for a
 
 ```python
 import asyncio
-from researchq import Workflow, SQLiteStorageProvider
-from researchq.mock_query import MockQueryHandler, MockResponseModel
+from robora import Workflow, SQLiteStorageProvider
+from robora.mock_query import MockQueryHandler, MockResponseModel
 
 async def workflow_example():
     # Set up components
@@ -108,11 +108,11 @@ await storage.save_response(question3, response3)
 
 ### Constructor
 ```python
-SQLiteStorageProvider(db_path: str = "researchq.db")
+SQLiteStorageProvider(db_path: str = "robora.db")
 ```
 
 **Parameters:**
-- `db_path`: Path to SQLite database file. Defaults to "researchq.db"
+- `db_path`: Path to SQLite database file. Defaults to "robora.db"
 
 ### Methods
 

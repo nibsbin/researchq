@@ -4,7 +4,7 @@ Comprehensive examples demonstrating structured responses with AutoRA
 
 import asyncio
 import pandas as pd
-from researchq.sprayer import spray, save_research_table
+from robora.sprayer import spray, save_research_table
 from examples.pydantic_models import SimpleYesNoResponse, CybersecurityAssessment, DepartmentInfo
 
 

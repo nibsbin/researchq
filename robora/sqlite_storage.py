@@ -5,18 +5,18 @@ import json
 import asyncio
 from typing import Dict, Any, AsyncIterable, Optional
 from pathlib import Path
-from researchq.classes import StorageProvider, Question, QueryResponse
+from robora.classes import StorageProvider, Question, QueryResponse
 
 
 class SQLiteStorageProvider(StorageProvider):
     """SQLite-based implementation of StorageProvider for persistent storage."""
     
-    def __init__(self, db_path: str = "researchq.db"):
+    def __init__(self, db_path: str = "robora.db"):
         """
         Initialize SQLite storage provider.
         
         Args:
-            db_path: Path to SQLite database file. Defaults to "researchq.db"
+            db_path: Path to SQLite database file. Defaults to "robora.db"
         """
         self.db_path = Path(db_path)
         self._init_database()

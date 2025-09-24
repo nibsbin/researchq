@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Type
 from pydantic import BaseModel, Field
-from researchq.classes import QueryHandler, QueryResponse
+from robora.classes import QueryHandler, QueryResponse
 
 
 class MockResponseModel(BaseModel):

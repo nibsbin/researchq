@@ -1,11 +1,11 @@
-# from researchq.sonar_query import query_sonar_structured  # Function doesn't exist
+# from robora.sonar_query import query_sonar_structured  # Function doesn't exist
 from typing import Optional
-# from researchq.storage import QueryStorage  # Commented out since it doesn't exist
+# from robora.storage import QueryStorage  # Commented out since it doesn't exist
 from pydantic import BaseModel
 from string import Template
 from typing import Type
 from abc import ABC
-from researchq.classes import Answer, StorageProvider, QueryHandler, Question, QuestionSet, QueryResponse
+from robora.classes import Answer, StorageProvider, QueryHandler, Question, QuestionSet, QueryResponse
 
 from typing import final
 import asyncio

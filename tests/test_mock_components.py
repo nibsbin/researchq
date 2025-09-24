@@ -3,10 +3,10 @@
 import pytest
 import asyncio
 from string import Template
-from researchq.mock_query import MockQueryHandler, MockResponseModel
-from researchq.session_storage import SessionStorageProvider
-from researchq.classes import Question
-from researchq.ask import Workflow
+from robora.mock_query import MockQueryHandler, MockResponseModel
+from robora.session_storage import SessionStorageProvider
+from robora.classes import Question
+from robora.ask import Workflow
 
 
 class TestMockResponseModel:

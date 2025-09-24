@@ -1,7 +1,7 @@
 """Simple in-memory storage provider implementation."""
 
 from typing import Dict, Any, AsyncIterable
-from researchq.classes import StorageProvider, Question, QueryResponse
+from robora.classes import StorageProvider, Question, QueryResponse
 
 
 class SessionStorageProvider(StorageProvider):

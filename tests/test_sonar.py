@@ -1,4 +1,4 @@
-from researchq.sonar_query import SonarQueryHandler
+from robora.sonar_query import SonarQueryHandler
 from pydantic import BaseModel
 import pytest
 

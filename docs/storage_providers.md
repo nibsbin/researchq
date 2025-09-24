@@ -1,6 +1,6 @@
 # Storage Providers
 
-ResearchQ supports multiple storage providers for caching question/response pairs. This allows you to choose the storage solution that best fits your needs.
+robora supports multiple storage providers for caching question/response pairs. This allows you to choose the storage solution that best fits your needs.
 
 ## Available Storage Providers
 
@@ -9,10 +9,10 @@ ResearchQ supports multiple storage providers for caching question/response pair
 - **Persistence**: Data lost when process ends
 - **Use case**: Temporary caching during a single session
 - **Performance**: Fastest
-- **Location**: `researchq.session_storage.SessionStorageProvider`
+- **Location**: `robora.session_storage.SessionStorageProvider`
 
 ```python
-from researchq import SessionStorageProvider
+from robora import SessionStorageProvider
 
 storage = SessionStorageProvider()
 ```
@@ -22,10 +22,10 @@ storage = SessionStorageProvider()
 - **Persistence**: Data persists across sessions
 - **Use case**: Long-term research data storage
 - **Performance**: Fast with disk persistence
-- **Location**: `researchq.sqlite_storage.SQLiteStorageProvider`
+- **Location**: `robora.sqlite_storage.SQLiteStorageProvider`
 
 ```python
-from researchq import SQLiteStorageProvider
+from robora import SQLiteStorageProvider
 
 # Use default database file
 storage = SQLiteStorageProvider()
@@ -49,8 +49,8 @@ storage = SQLiteStorageProvider("my_research.db")
 Both storage providers implement the same interface and can be used interchangeably:
 
 ```python
-from researchq import Workflow, SQLiteStorageProvider
-from researchq.mock_query import MockQueryHandler, MockResponseModel
+from robora import Workflow, SQLiteStorageProvider
+from robora.mock_query import MockQueryHandler, MockResponseModel
 
 # Set up workflow with persistent storage
 query_handler = MockQueryHandler(MockResponseModel)
@@ -68,7 +68,7 @@ All storage providers implement the `StorageProvider` abstract base class:
 ```python
 from abc import ABC, abstractmethod
 from typing import AsyncIterable
-from researchq.classes import Question, QueryResponse
+from robora.classes import Question, QueryResponse
 
 class StorageProvider(ABC):
     @abstractmethod
@@ -93,7 +93,7 @@ class StorageProvider(ABC):
 You can create custom storage providers by implementing the `StorageProvider` interface:
 
 ```python
-from researchq.classes import StorageProvider, Question, QueryResponse
+from robora.classes import StorageProvider, Question, QueryResponse
 
 class MyCustomStorageProvider(StorageProvider):
     async def save_response(self, question: Question, response: QueryResponse) -> None:

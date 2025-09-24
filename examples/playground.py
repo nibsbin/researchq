@@ -1,10 +1,10 @@
-import researchq
+import robora
 import asyncio
-from researchq.classes import Question, QuestionSet, Answer
-from researchq.ask import Workflow
-from researchq.session_storage import SessionStorageProvider
-from researchq.mock_query import MockQueryHandler, MockResponseModel
-from researchq.sonar_query import SonarQueryHandler
+from robora.classes import Question, QuestionSet, Answer
+from robora.ask import Workflow
+from robora.session_storage import SessionStorageProvider
+from robora.mock_query import MockQueryHandler, MockResponseModel
+from robora.sonar_query import SonarQueryHandler
 
 query_handler = MockQueryHandler(MockResponseModel)
 storage_provider = SessionStorageProvider()

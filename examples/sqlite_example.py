@@ -9,10 +9,10 @@ storage of question/response pairs across sessions.
 import asyncio
 import tempfile
 import os
-from researchq.classes import Question, QueryResponse
-from researchq.sqlite_storage import SQLiteStorageProvider
-from researchq.ask import Workflow
-from researchq.mock_query import MockQueryHandler, MockResponseModel
+from robora.classes import Question, QueryResponse
+from robora.sqlite_storage import SQLiteStorageProvider
+from robora.ask import Workflow
+from robora.mock_query import MockQueryHandler, MockResponseModel
 
 
 async def basic_sqlite_example():

@@ -1,11 +1,4 @@
-"""robora - Research question automation utilities.
-
-This package was extracted from the larger `robora` project to be
-published independently on PyPI as ``robora``.
-"""
-
-# Package version (kept here so packaging tools can import it if needed).
-__version__ = "0.1.0"
+"""robora - A Python package for research question automation."""
 
 from .classes import Question, QuestionSet, Answer, QueryResponse, QueryHandler, StorageProvider
 from .session_storage import SessionStorageProvider
