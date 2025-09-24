@@ -48,6 +48,9 @@ class QuestionSet:
             questions.append(Question(word_set, self.template, self.response_model))
         return questions
     
+    def __repr__(self) -> str:
+        return f"QuestionSet(template={self.template}, word_sets={self.word_sets})"
+    
 @final
 class Answer:
     # Fundamental attributes
