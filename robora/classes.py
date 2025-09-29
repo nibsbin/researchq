@@ -29,6 +29,13 @@ class Question:
     
     def __hash__(self) -> int:
         return hash((self.template, frozenset(self.word_set.items())))
+    
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Question):
+            return False
+        return (self.template == other.template and 
+                self.word_set == other.word_set and
+                self.response_model == other.response_model)
 
     
 @final
