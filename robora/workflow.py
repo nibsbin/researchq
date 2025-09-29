@@ -96,8 +96,12 @@ class Workflow:
     async def dump_answers(self, filter: Optional[Dict[str, Callable[[str], bool]]] = None) -> AsyncIterable[Answer]:
         async for question in self.storage.get_stored_questions():
             if filter is not None:
-                if not all(fn(answer) for fn in filter.values()):
-                    continue
+                for key in filter.keys():
+                    if key not in question.word_set:
+                        continue
+                    fn = filter[key]
+                    if not fn(question.word_set[key]):
+                        continue
 
             response = await self.storage.get_response(question)
             answer = self.build_answer(question, response)
