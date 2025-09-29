@@ -3,7 +3,7 @@ from typing import Optional
 # from robora.storage import QueryStorage  # Commented out since it doesn't exist
 from pydantic import BaseModel
 from string import Template
-from typing import Type, List, Dict, Any, Callable
+from typing import Type, List, Dict, Any, Callable, AsyncIterable, Optional
 from abc import ABC
 from robora.classes import Answer, StorageProvider, QueryHandler, Question, QuestionSet, QueryResponse
 
@@ -45,10 +45,23 @@ class Workflow:
     async def ask_multiple_stream(self, question_set: QuestionSet, overwrite:bool=False):
         semaphore = asyncio.Semaphore(self.max_workers)
 
+        total = len(list(question_set.get_questions()))
+        print(f"ask_multiple_stream: starting for {total} questions with {self.max_workers} workers")
+        started = 0
+
         async def process_question(question):
             async with semaphore:
                 question.response_model = question_set.response_model
-                return await self.ask(question)
+                nonlocal started
+                started += 1
+                try:
+                    print(f"Processing question {started}/{total}: {question.template} - {question.word_set}")
+                    ans = await self.ask(question)
+                    print(f"Finished question {started}/{total}")
+                    return ans
+                except Exception as e:
+                    print(f"Error processing question {question.template} with words {question.word_set}: {e}")
+                    raise
 
         tasks = [process_question(q) for q in question_set.get_questions()]
         for coro in asyncio.as_completed(tasks):
@@ -58,9 +71,15 @@ class Workflow:
     async def ask_multiple(self, question_set: QuestionSet, overwrite:bool=False, return_results:bool=True) -> List[Answer]:
         """Convenience method to gather all answers into a list."""
         answers = []
-        async for answer in self.ask_multiple_stream(question_set, overwrite=overwrite):
-            if return_results:
-                answers.append(answer)
+        print("ask_multiple: gathering answers")
+        try:
+            async for answer in self.ask_multiple_stream(question_set, overwrite=overwrite):
+                if return_results:
+                    answers.append(answer)
+        except Exception as e:
+            print(f"ask_multiple: encountered error during processing: {e}")
+            raise
+        print(f"ask_multiple: completed, collected {len(answers)} answers")
         return answers
 
     def build_answer(self, question: Question, response: QueryResponse) -> Answer:
@@ -74,7 +93,7 @@ class Workflow:
         answer = Answer.from_question(question, response.full_response, fields)
         return answer
 
-    async def dump_answers(self, filter: Optional[Dict[str, Callable[[str], bool]]]):
+    async def dump_answers(self, filter: Optional[Dict[str, Callable[[str], bool]]] = None) -> AsyncIterable[Answer]:
         async for question in self.storage.get_stored_questions():
             if filter is not None:
                 if not all(fn(answer) for fn in filter.values()):
@@ -82,4 +101,4 @@ class Workflow:
 
             response = await self.storage.get_response(question)
             answer = self.build_answer(question, response)
-
+            yield answer

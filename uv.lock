@@ -836,7 +836,7 @@ wheels = [
 
 [[package]]
 name = "robora"
-version = "0.0.1"
+version = "0.0.11"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
