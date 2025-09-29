@@ -3,7 +3,7 @@ from typing import Optional
 # from robora.storage import QueryStorage  # Commented out since it doesn't exist
 from pydantic import BaseModel
 from string import Template
-from typing import Type, List, Dict, Any
+from typing import Type, List, Dict, Any, Callable
 from abc import ABC
 from robora.classes import Answer, StorageProvider, QueryHandler, Question, QuestionSet, QueryResponse
 
@@ -73,10 +73,13 @@ class Workflow:
             fields = {}
         answer = Answer.from_question(question, response.full_response, fields)
         return answer
-    
-    async def dump_answers(self):
+
+    async def dump_answers(self, filter: Optional[Dict[str, Callable[[str], bool]]]):
         async for question in self.storage.get_stored_questions():
+            if filter is not None:
+                if not all(fn(answer) for fn in filter.values()):
+                    continue
+
             response = await self.storage.get_response(question)
             answer = self.build_answer(question, response)
-            yield answer
 

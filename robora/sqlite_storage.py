@@ -19,7 +19,29 @@ class SQLiteStorageProvider(StorageProvider):
             db_path: Path to SQLite database file. Defaults to "robora.db"
         """
         self.db_path = Path(db_path)
+        # initialize DB schema if needed
         self._init_database()
+        # load existing DB state into memory (e.g., known question hashes)
+        self._load_database()
+
+    def _load_database(self) -> None:
+        """Load lightweight DB state into memory on initialization.
+
+        Currently we load the set of stored question_hash values so callers can
+        quickly check presence without a round-trip for common operations.
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute("SELECT question_hash FROM question_responses")
+                rows = cursor.fetchall()
+        except Exception:
+            # If DB cannot be read for any reason, initialize empty state.
+            rows = []
+
+        # Store a set of known question_hash values in memory.
+        self._question_hashes = {row[0] for row in rows} if rows else set()
+        self._loaded = True
+        print(f"Loaded {len(self._question_hashes)} stored question hashes from {self.db_path}")
     
     def _init_database(self) -> None:
         """Initialize the SQLite database and create tables if they don't exist."""
