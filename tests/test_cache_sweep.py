@@ -38,9 +38,9 @@ class TestCacheSweep:
         # Should have 3 answers (3 countries)
         assert len(answers) == 3
         
-        # Check output for cache statistics
+        # Check output for doc statistics
         captured = capsys.readouterr()
-        assert "cache sweep complete - 0 cached, 3 need querying" in captured.out
+        assert "doc sweep complete - 0 doc hit, 3 doc miss" in captured.out
         
     @pytest.mark.asyncio
     async def test_cache_sweep_with_cached_responses(self, workflow, question_set, capsys):
@@ -65,11 +65,11 @@ class TestCacheSweep:
         # Should have same number of answers
         assert len(second_run_answers) == 3
         
-        # Check output for cache statistics
+        # Check output for doc statistics
         captured = capsys.readouterr()
         print(f"Captured output: {captured.out}")
-        assert "cache sweep complete - 3 cached, 0 need querying" in captured.out
-        assert "Returning cached response for:" in captured.out
+        assert "doc sweep complete - 3 doc hit, 0 doc miss" in captured.out
+        assert "Returning doc hit response for:" in captured.out
         
     @pytest.mark.asyncio
     async def test_cache_sweep_mixed_cache_hits_and_misses(self, workflow, question_set, capsys):
@@ -97,13 +97,13 @@ class TestCacheSweep:
         # Should have 3 answers total
         assert len(full_answers) == 3
         
-        # Check output for cache statistics - 2 cached (France, Germany), 1 new (Canada)
+        # Check output for doc statistics - 2 doc hit (France, Germany), 1 doc miss (Canada)
         captured = capsys.readouterr()
-        assert "cache sweep complete - 2 cached, 1 need querying" in captured.out
+        assert "doc sweep complete - 2 doc hit, 1 doc miss" in captured.out
         
     @pytest.mark.asyncio
     async def test_overwrite_bypasses_cache(self, workflow, question_set, capsys):
-        """Test that overwrite=True bypasses cache completely."""
+        """Test that overwrite=True bypasses doc sweep completely."""
         # First run to populate cache
         first_answers = []
         async for answer in workflow.ask_multiple_stream(question_set):
@@ -120,6 +120,6 @@ class TestCacheSweep:
         # Should have same number of answers
         assert len(second_answers) == 3
         
-        # Check output - should show all as needing querying
+        # Check output - should show all as doc miss
         captured = capsys.readouterr()
-        assert "cache sweep complete - 0 cached, 3 need querying" in captured.out
+        assert "doc sweep complete - 0 doc hit, 3 doc miss" in captured.out

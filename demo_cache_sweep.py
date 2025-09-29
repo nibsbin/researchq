@@ -1,4 +1,4 @@
-"""Demo script to showcase the cache sweep functionality."""
+"""Demo script to showcase the doc sweep functionality."""
 
 import asyncio
 from robora.workflow import Workflow
@@ -8,9 +8,9 @@ from robora.mock_query import MockQueryHandler
 from examples.pydantic_models import SimpleYesNoResponse
 
 
-async def demo_cache_sweep():
-    """Demonstrate the cache sweep functionality."""
-    print("=== Cache Sweep Demo ===\n")
+async def demo_doc_sweep():
+    """Demonstrate the doc sweep functionality."""
+    print("=== Doc Sweep Demo ===\n")
     
     # Setup
     storage = SessionStorageProvider()
@@ -24,7 +24,7 @@ async def demo_cache_sweep():
     template = "Does {country} have a national cybersecurity strategy?"
     question_set = QuestionSet(template, word_sets, SimpleYesNoResponse)
     
-    print("First run - all questions will be cache misses:")
+    print("First run - all questions will be doc misses:")
     print("-" * 50)
     
     first_answers = []
@@ -32,9 +32,9 @@ async def demo_cache_sweep():
         first_answers.append(answer)
     
     print(f"\nFirst run complete. Got {len(first_answers)} answers.")
-    print(f"Storage now contains {storage.count()} cached responses.\n")
+    print(f"Storage now contains {storage.count()} stored responses.\n")
     
-    print("Second run - all questions should be cache hits:")
+    print("Second run - all questions should be doc hits:")
     print("-" * 50)
     
     second_answers = []
@@ -42,10 +42,10 @@ async def demo_cache_sweep():
         second_answers.append(answer)
     
     print(f"\nSecond run complete. Got {len(second_answers)} answers.")
-    print(f"Storage still contains {storage.count()} cached responses (no new queries).\n")
+    print(f"Storage still contains {storage.count()} stored responses (no new queries).\n")
     
     # Demonstrate mixed scenario
-    print("Third run with additional country - mixed cache hits/misses:")
+    print("Third run with additional country - mixed doc hits/misses:")
     print("-" * 60)
     
     word_sets_extended = {
@@ -58,10 +58,10 @@ async def demo_cache_sweep():
         third_answers.append(answer)
     
     print(f"\nThird run complete. Got {len(third_answers)} answers.")
-    print(f"Storage now contains {storage.count()} cached responses.\n")
+    print(f"Storage now contains {storage.count()} stored responses.\n")
     
     # Demonstrate overwrite functionality
-    print("Fourth run with overwrite=True - should bypass all cache:")
+    print("Fourth run with overwrite=True - should bypass all doc checks:")
     print("-" * 55)
     
     fourth_answers = []
@@ -69,10 +69,10 @@ async def demo_cache_sweep():
         fourth_answers.append(answer)
     
     print(f"\nFourth run complete. Got {len(fourth_answers)} answers.")
-    print(f"Storage now contains {storage.count()} cached responses (responses updated).\n")
+    print(f"Storage now contains {storage.count()} stored responses (responses updated).\n")
     
     print("=== Demo Complete ===")
 
 
 if __name__ == "__main__":
-    asyncio.run(demo_cache_sweep())
+    asyncio.run(demo_doc_sweep())

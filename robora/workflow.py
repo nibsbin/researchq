@@ -23,15 +23,15 @@ class Workflow:
         if not overwrite:
             response = await self.storage.get_response(question)
             if response is not None:
-                print("Found cached response")
+                print("Found doc hit response")
                 if response.error:
-                    print("Cached response has error, flushing:", response.error)
+                    print("Doc hit response has error, flushing:", response.error)
                     response = None
                 else:
-                    print("Using cached response")
+                    print("Using doc hit response")
                     print(response)
 
-        # If no cached response, query
+        # If no doc hit response, query
         if response is None:
             prompt = question.value
             response = await self.query_handler.query(prompt=prompt)
@@ -43,7 +43,7 @@ class Workflow:
         return answer
 
     async def _ask_without_cache_check(self, question: Question) -> Answer:
-        """Internal method to ask a question without checking cache - used when cache has already been checked."""
+        """Internal method to ask a question without checking cache - used when doc sweep has already been performed."""
         prompt = question.value
         response = await self.query_handler.query(prompt=prompt)
         assert response is not None
@@ -62,35 +62,35 @@ class Workflow:
         for question in questions:
             question.response_model = question_set.response_model
         
-        # Cache sweep: check which questions have cached responses
-        cache_hits = []
-        cache_misses = []
+        # Doc sweep: check which questions have doc hits
+        doc_hits = []
+        doc_misses = []
         
-        print("ask_multiple_stream: performing cache sweep...")
+        print("ask_multiple_stream: performing doc sweep...")
         
         for question in questions:
             if not overwrite:
                 cached_response = await self.storage.get_response(question)
                 if cached_response is not None and not cached_response.error:
-                    cache_hits.append((question, cached_response))
+                    doc_hits.append((question, cached_response))
                 else:
-                    cache_misses.append(question)
+                    doc_misses.append(question)
             else:
-                cache_misses.append(question)
+                doc_misses.append(question)
         
-        cache_hit_count = len(cache_hits)
-        cache_miss_count = len(cache_misses)
+        doc_hit_count = len(doc_hits)
+        doc_miss_count = len(doc_misses)
         
-        print(f"ask_multiple_stream: cache sweep complete - {cache_hit_count} cached, {cache_miss_count} need querying")
+        print(f"ask_multiple_stream: doc sweep complete - {doc_hit_count} doc hit, {doc_miss_count} doc miss")
         
-        # First, yield all cached responses
-        for question, cached_response in cache_hits:
-            print(f"Returning cached response for: {question.template} - {question.word_set}")
+        # First, yield all doc hit responses
+        for question, cached_response in doc_hits:
+            print(f"Returning doc hit response for: {question.template} - {question.word_set}")
             answer = self.build_answer(question, cached_response)
             yield answer
         
-        # Then process cache misses with workers
-        if cache_misses:
+        # Then process doc misses with workers
+        if doc_misses:
             semaphore = asyncio.Semaphore(self.max_workers)
             started = 0
 
@@ -99,16 +99,16 @@ class Workflow:
                     nonlocal started
                     started += 1
                     try:
-                        print(f"Processing question {started}/{cache_miss_count}: {question.template} - {question.word_set}")
+                        print(f"Processing question {started}/{doc_miss_count}: {question.template} - {question.word_set}")
                         # Call ask with skip_cache=True to avoid double cache lookup
                         ans = await self._ask_without_cache_check(question)
-                        print(f"Finished question {started}/{cache_miss_count}")
+                        print(f"Finished question {started}/{doc_miss_count}")
                         return ans
                     except Exception as e:
                         print(f"Error processing question {question.template} with words {question.word_set}: {e}")
                         raise
 
-            tasks = [process_question(q) for q in cache_misses]
+            tasks = [process_question(q) for q in doc_misses]
             for coro in asyncio.as_completed(tasks):
                 answer = await coro
                 yield answer
