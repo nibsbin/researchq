@@ -31,7 +31,7 @@ class MockQueryHandler(QueryHandler):
             "choices": [
                 {
                     "message": {
-                        "content": '{"relevance": 7, "explanation": "This is a mock response demonstrating a moderate cybersecurity level with detailed explanation about security practices and recommendations."}'
+                        "content": '{"answer": true, "confidence": "high", "explanation": "This is a mock response demonstrating a positive answer with detailed explanation about security practices and recommendations.", "sources": ["https://mock-security-source1.com", "https://mock-security-source2.com"]}'
                     },
                     "finish_reason": "stop"
                 }
@@ -84,8 +84,10 @@ class MockQueryHandler(QueryHandler):
         except (json.JSONDecodeError, Exception):
             # Fallback to default values if parsing fails
             content = self.response_model(
-                relevance=2,
-                explanation="Default mock response - unable to parse structured content"
+                answer=True,
+                confidence="medium",
+                explanation="Default mock response - unable to parse structured content",
+                sources=["https://mock-fallback-source.com"]
             )
             content_dict = content.model_dump()
         
