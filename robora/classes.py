@@ -12,6 +12,7 @@ import pandas as pd
 
 # Removed the storage import since it doesn't exist
 
+@final
 class Question:
     def __init__(self, word_set: Dict[str, str], template: str, response_model:Type[BaseModel]):
         self.word_set = word_set
@@ -30,7 +31,7 @@ class Question:
         return hash((self.template, frozenset(self.word_set.items())))
 
     
-
+@final
 class QuestionSet:
     def __init__(self, template: str, word_sets: Dict[str, List[str]], response_model:Type[BaseModel], max_questions: Optional[int]=None):
         self.template = template
